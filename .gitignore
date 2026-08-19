@@ -1,0 +1,11 @@
+# PyInstaller / Inno Setup output
+build/
+dist/
+Installer/
+*.spec.bak
+
+# Generated at build time from tools/make_icon.py
+assets/icon-preview.png
+
+__pycache__/
+*.py[cod]

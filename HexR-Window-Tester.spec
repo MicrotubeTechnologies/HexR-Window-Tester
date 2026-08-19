@@ -1,0 +1,110 @@
+# -*- mode: python ; coding: utf-8 -*-
+# PyInstaller spec for the HEXR Window Tester app.
+#
+#     pyinstaller --noconfirm HexR-Window-Tester.spec
+#
+# Produces a FOLDER build at dist\HexR-Window-Tester\, with a no-console
+# HexR-Window-Tester.exe inside it. That folder is what the Inno Setup script in
+# packaging\ turns into the single installer .exe, and what BUILD-INSTALLER.bat
+# also zips as the portable download.
+#
+# Deliberately not --onefile: a onefile build unpacks its whole ~15 MB payload
+# into a temp directory on EVERY launch, which is a visible startup delay and
+# pointless when an installer is laying the files down once anyway.
+
+import os
+
+from PyInstaller.utils.hooks import collect_all
+from PyInstaller.utils.win32.versioninfo import (
+    FixedFileInfo, StringFileInfo, StringStruct, StringTable, VarFileInfo,
+    VarStruct, VSVersionInfo)
+
+datas, binaries, hiddenimports = [], [], []
+for pkg in ("bleak",):
+    d, b, h = collect_all(pkg)
+    datas += d; binaries += b; hiddenimports += h
+
+# Bundle the IBM Plex faces so the app renders correctly on a machine that has
+# never had them installed. hexr/theme.py loads them per-process at startup.
+if os.path.isdir("assets/fonts"):
+    datas += [("assets/fonts", "assets/fonts")]
+
+# The icon files the RUNNING app reads, as opposed to the one baked into the
+# exe's own resources below. icon.ico is the taskbar/Alt-Tab icon Tk sets at
+# startup; icon-16.png is the mark drawn in the title bar. Without these in
+# datas both lookups miss inside the bundle, and the packaged app quietly falls
+# back to Tk's feather and a plain orange square - which is exactly what it did
+# before they were added here.
+for _icon in ("assets/icon.ico", "assets/icon-16.png"):
+    if os.path.exists(_icon):
+        datas += [(_icon, "assets")]
+
+icon = "assets/icon.ico" if os.path.exists("assets/icon.ico") else None
+
+# The Windows version resource is built here from the VERSION file rather than
+# kept in a checked-in .txt that something has to rewrite. A build step that
+# patched that file with regexes was one shell-quoting mistake away from
+# emitting invalid Python and breaking the build; generating it is not.
+with open("VERSION", encoding="utf-8") as _f:
+    APP_VERSION = _f.read().strip() or "0.0.0"
+_parts = (APP_VERSION.split(".") + ["0", "0", "0", "0"])[:4]
+_quad = tuple(int(p) if p.isdigit() else 0 for p in _parts)
+
+version_res = VSVersionInfo(
+    ffi=FixedFileInfo(filevers=_quad, prodvers=_quad, mask=0x3F, flags=0x0,
+                      OS=0x40004, fileType=0x1, subtype=0x0, date=(0, 0)),
+    kids=[
+        StringFileInfo([StringTable('040904B0', [
+            StringStruct('CompanyName', 'Microtube Technologies'),
+            StringStruct('FileDescription', 'HEXR Window Tester'),
+            StringStruct('FileVersion', '.'.join(str(n) for n in _quad)),
+            StringStruct('InternalName', 'HexR-Window-Tester'),
+            StringStruct('LegalCopyright', '© Microtube Technologies'),
+            StringStruct('OriginalFilename', 'HexR-Window-Tester.exe'),
+            StringStruct('ProductName', 'HEXR Window Tester'),
+            StringStruct('ProductVersion', '.'.join(str(n) for n in _quad)),
+        ])]),
+        VarFileInfo([VarStruct('Translation', [1033, 1200])]),
+    ])
+
+# ship VERSION inside the bundle so the running app can report it too
+datas += [("VERSION", ".")]
+
+a = Analysis(
+    ['hexr_tester.py'],           # three-step desktop app (Tkinter)
+    pathex=[],
+    binaries=binaries,
+    datas=datas,
+    hiddenimports=hiddenimports + [
+        'hexr', 'hexr.theme', 'hexr.widgets', 'hexr.shell',
+        'hexr.state', 'hexr.engine', 'hexr.protocol',
+        'hexr.screens', 'hexr.screens.base', 'hexr.screens.connect',
+        'hexr.screens.test', 'hexr.screens.quicktest',
+    ],
+    hookspath=[],
+    runtime_hooks=[],
+    excludes=[],
+    noarchive=False,
+)
+pyz = PYZ(a.pure)
+
+exe = EXE(
+    pyz, a.scripts, [],
+    exclude_binaries=True,        # folder build: binaries go in COLLECT
+    name='HexR-Window-Tester',
+    debug=False,
+    bootloader_ignore_signals=False,
+    strip=False,
+    upx=True,
+    console=False,                # <-- no terminal window
+    icon=icon,
+    version=version_res,
+)
+
+coll = COLLECT(
+    exe, a.binaries, a.datas,
+    strip=False,
+    upx=True,
+    upx_exclude=[],
+    name='HexR-Window-Tester',
+)
