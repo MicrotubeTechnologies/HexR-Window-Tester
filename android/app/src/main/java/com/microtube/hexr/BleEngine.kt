@@ -7,6 +7,7 @@ import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCallback
 import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothGattDescriptor
+import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
 import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanResult
@@ -198,7 +199,7 @@ class BleEngine(
 
         val session = Session(glove)
         sessions[hand] = session
-        session.gatt = device.connectGatt(context, false, session, BluetoothGatt.TRANSPORT_LE)
+        session.gatt = device.connectGatt(context, false, session, BluetoothDevice.TRANSPORT_LE)
     }
 
     fun disconnect(hand: String) {
