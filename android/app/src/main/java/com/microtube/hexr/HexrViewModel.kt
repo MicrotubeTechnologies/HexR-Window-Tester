@@ -112,6 +112,18 @@ class HexrViewModel(app: Application) : AndroidViewModel(app) {
     var peakRatio by mutableStateOf(0.5)
     var hands by mutableStateOf(setOf(LEFT, RIGHT))
 
+    /**
+     * "hold" drives only while the pad is held; "latch" toggles on a tap.
+     *
+     * Hold is the default because releasing is then the same motion as
+     * finishing, and a phone that is dropped or backgrounded vents on its own.
+     * Latch exists for the case hold cannot serve: putting the phone down to
+     * feel a channel with both hands.
+     */
+    var driveMode by mutableStateOf("hold")     // "hold" | "latch"
+    var driving by mutableStateOf(false)
+        private set
+
     // -- quick test ----------------------------------------------------------
 
     var qtHand by mutableStateOf<String?>(null)
@@ -158,6 +170,8 @@ class HexrViewModel(app: Application) : AndroidViewModel(app) {
                 mtu = g.mtu,
             )
         }.toMap()
+
+        if (driving && !hands.any { gloves[it]?.connected == true }) driving = false
 
         // Keep the quick test's hand pointed at something real.
         val chosen = qtHand
@@ -230,13 +244,28 @@ class HexrViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun trigger() = engine.sendHands(connectedAmong(hands), frames(true))
+    fun startDrive() {
+        if (!canDrive()) return
+        driving = true
+        engine.sendHands(connectedAmong(hands), frames(true))
+    }
 
-    fun release() = engine.sendHands(connectedAmong(hands), frames(false))
+    fun stopDrive() {
+        if (!driving) return
+        driving = false
+        // Vent every channel, not just the selected ones. If someone changed
+        // the selection mid-drive, the channel they deselected is still
+        // inflated and a targeted release would leave it that way.
+        engine.sendHands(connectedAmong(hands), Protocol.allOff())
+    }
+
+    fun canDrive(): Boolean =
+        channels.isNotEmpty() && hands.any { gloves[it]?.connected == true }
 
     /** Vent everything, everywhere. Wired to the always-visible top-bar button. */
     fun allOff() {
         if (qtPhase == "settle" || qtPhase == "drive") abortQuickTest("Stopped")
+        driving = false
         engine.sendAllOff()
     }
 
@@ -252,6 +281,7 @@ class HexrViewModel(app: Application) : AndroidViewModel(app) {
      */
     fun onBackground() {
         if (qtPhase == "settle" || qtPhase == "drive") abortQuickTest("Stopped — app backgrounded")
+        driving = false
         engine.sendAllOff()
         if (scanning) {
             engine.stopScan()

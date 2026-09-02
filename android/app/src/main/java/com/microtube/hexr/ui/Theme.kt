@@ -47,14 +47,43 @@ object T {
 
     val METER_IDLE = Color(0xFF3A4048)    // below-threshold signal fill
 
-    // Geometry. The desktop's radii, kept: 3/4/5/6/8/10 px.
-    val R_METER = 3.dp
-    val R_CHIP = 4.dp
-    val R_CELL = 6.dp
-    val R_CTRL = 8.dp
-    val R_PANEL = 10.dp
+    // Geometry. The desktop's radii, scaled up a little: a 3 px radius that
+    // reads as a crisp corner on a monitor reads as a rendering artefact at
+    // phone density.
+    val R_METER = 4.dp
+    val R_CHIP = 6.dp
+    val R_CELL = 10.dp
+    val R_CTRL = 12.dp
+    val R_PANEL = 14.dp
 
     val PAGE_PAD = 16.dp
+
+    /**
+     * Minimum touch target. Android asks for 48; controls that carry pressure
+     * to somebody's hand get a little more, because a mis-tap here is not a
+     * mis-tap in a menu.
+     */
+    val TAP_MIN = 52.dp
+}
+
+/**
+ * The type scale.
+ *
+ * The desktop app sits at 11–15 px throughout, which is right for a monitor an
+ * arm's length away with a mouse. On a phone held over a bench it flattens
+ * everything into one texture. The reading is what someone is actually here to
+ * see, so the reading is the biggest thing on the screen and the label next to
+ * it is the smallest.
+ */
+object Size {
+    const val DISPLAY = 30      // the one number a screen exists to show
+    const val READING = 19      // live kPa, peak values
+    const val TITLE = 23        // screen heading
+    const val SUBTITLE = 16     // panel heading
+    const val BODY = 14.5f
+    const val CAPTION = 13
+    const val MICRO = 11.5f     // gauge scales, units
+    const val LABEL = 11        // tracked uppercase section labels
 }
 
 /**

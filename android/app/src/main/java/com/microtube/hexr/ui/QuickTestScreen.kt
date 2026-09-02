@@ -9,9 +9,14 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.microtube.hexr.HANDS
 import com.microtube.hexr.HexrViewModel
@@ -21,13 +26,15 @@ import com.microtube.hexr.QuickTest
  * Screen 03 — the canned QA sweep.
  *
  * Drives every channel to full pressure at once, watches what each one reaches
- * and how fast, then judges it. This is the pass/fail check you run on a glove
- * coming off the bench or back from a customer; screen 02 is for exploring,
- * this is for deciding.
+ * and how fast, then judges it. Screen 02 is for exploring; this is for
+ * deciding.
+ *
+ * Someone opens this screen to learn one thing, so the answer is stated once
+ * and large before the per-channel detail. Making them derive "did it pass"
+ * from six table rows is making them do the summarising themselves.
  *
  * The verdict thresholds live in [QuickTest] and match the desktop tester's, so
- * a result recorded on a phone means the same thing as one recorded on a bench
- * laptop.
+ * a result recorded on a phone means the same as one recorded on a bench laptop.
  */
 
 private fun verdictColour(verdict: String?): Color = when (verdict) {
@@ -40,6 +47,8 @@ private fun verdictColour(verdict: String?): Color = when (verdict) {
 @Composable
 fun QuickTestScreen(vm: HexrViewModel) {
     val running = vm.qtPhase == "settle" || vm.qtPhase == "drive"
+    val done = vm.qtPhase == "done"
+    var legendOpen by remember { mutableStateOf(false) }
 
     Column(
         Modifier
@@ -51,7 +60,7 @@ fun QuickTestScreen(vm: HexrViewModel) {
         Caption(
             "Drives every channel to full for two seconds and reports what each one " +
                 "reached. Take the glove off first.",
-            Modifier.padding(top = 4.dp),
+            Modifier.padding(top = 5.dp),
             T.TEXT_MUTED,
         )
         VSpace(18)
@@ -74,16 +83,26 @@ fun QuickTestScreen(vm: HexrViewModel) {
         }
         VSpace(18)
 
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            PrimaryButton(
-                if (running) "Stop" else "Run quick test",
-                onClick = vm::toggleQuickTest,
+        // The answer, before the evidence.
+        if (done) {
+            VerdictBanner(
+                headline = vm.qtStatus,
+                detail = vm.qtSummary,
+                tone = vm.qtStatusTone,
             )
-            HSpace(12)
-            Caption(vm.qtStatus, Modifier.weight(1f), vm.qtStatusTone.color())
+            VSpace(16)
         }
-        VSpace(14)
 
+        PrimaryButton(
+            if (running) "Stop" else if (done) "Run again" else "Run quick test",
+            Modifier.fillMaxWidth(),
+            onClick = vm::toggleQuickTest,
+        )
+        if (running || (!done && vm.qtStatus.isNotEmpty())) {
+            VSpace(12)
+            Caption(vm.qtStatus, color = vm.qtStatusTone.color())
+        }
+        VSpace(12)
         ProgressBar(
             fraction = vm.qtProgress,
             color = when (vm.qtPhase) {
@@ -98,68 +117,75 @@ fun QuickTestScreen(vm: HexrViewModel) {
         Panel(Modifier.fillMaxWidth()) {
             Column {
                 TableRow {
-                    SectionLabel("Channel", Modifier.width(72.dp))
-                    SectionLabel("Peak", Modifier.width(76.dp))
-                    SectionLabel("Time", Modifier.width(56.dp))
-                    SectionLabel("Verdict", Modifier.weight(1f))
+                    SectionLabel("Channel", Modifier.weight(1f))
+                    SectionLabel("Peak", Modifier.width(74.dp))
                 }
                 Divider()
-                vm.qtRows.forEach { row ->
+                vm.qtRows.forEachIndexed { i, row ->
                     TableRow {
-                        Label(row.label, Modifier.width(72.dp))
+                        Column(Modifier.weight(1f)) {
+                            Label(row.label, color = T.TEXT, weight = FontWeight.Medium)
+                            if (row.verdict != null) {
+                                Label(
+                                    row.verdict +
+                                        (row.timeToPeak?.let { " · %.2f s".format(it) } ?: ""),
+                                    color = verdictColour(row.verdict),
+                                    size = Size.MICRO,
+                                    weight = FontWeight.SemiBold,
+                                    modifier = Modifier.padding(top = 2.dp),
+                                )
+                            }
+                        }
                         MonoText(
                             row.peak?.let { "%.1f".format(it) } ?: "—",
-                            Modifier.width(76.dp),
-                            T.TEXT,
-                        )
-                        MonoText(
-                            row.timeToPeak?.let { "%.2fs".format(it) } ?: "—",
-                            Modifier.width(56.dp),
-                            T.TEXT_2,
-                            11,
-                        )
-                        Label(
-                            row.verdict ?: "—",
-                            Modifier.weight(1f),
-                            verdictColour(row.verdict),
-                            12,
+                            Modifier.width(74.dp),
+                            if (row.peak == null) T.TEXT_OFF else T.TEXT,
+                            size = Size.READING.toFloat(),
+                            weight = FontWeight.Medium,
                         )
                     }
-                    Divider()
+                    if (i < vm.qtRows.lastIndex) Divider()
                 }
             }
         }
 
-        if (vm.qtSummary.isNotEmpty()) {
-            VSpace(14)
-            Caption(vm.qtSummary, color = vm.qtSummaryTone.color())
-        }
-
-        VSpace(22)
-        SectionLabel("What the verdicts mean")
         VSpace(8)
-        Panel(Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(vertical = 4.dp)) {
-                listOf(
-                    "Pass" to "above ${QuickTest.PASS_KPA.toInt()} kPa — full strength",
-                    "Good" to "${QuickTest.GOOD_KPA.toInt()}–${QuickTest.PASS_KPA.toInt()} kPa — within tolerance",
-                    "Weak" to "${QuickTest.WEAK_KPA.toInt()}–${QuickTest.GOOD_KPA.toInt()} kPa — never got to full",
-                    "Indenter failed" to "under ${QuickTest.WEAK_KPA.toInt()} kPa — barely moved",
-                    "Pump failed" to "nothing at all — that channel is getting no air",
-                ).forEach { (verdict, meaning) ->
-                    TableRow {
-                        Label(verdict, Modifier.width(112.dp), verdictColour(verdict), 12)
-                        Caption(meaning, Modifier.weight(1f))
+        Disclosure(
+            title = "What the verdicts mean",
+            expanded = legendOpen,
+            onToggle = { legendOpen = !legendOpen },
+        ) {
+            Panel(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(vertical = 2.dp)) {
+                    listOf(
+                        "Pass" to "above ${QuickTest.PASS_KPA.toInt()} kPa · full strength",
+                        "Good" to "${QuickTest.GOOD_KPA.toInt()}–${QuickTest.PASS_KPA.toInt()} kPa · within tolerance",
+                        "Weak" to "${QuickTest.WEAK_KPA.toInt()}–${QuickTest.GOOD_KPA.toInt()} kPa · never got to full",
+                        "Indenter failed" to "under ${QuickTest.WEAK_KPA.toInt()} kPa · barely moved",
+                        "Pump failed" to "nothing at all · that channel is getting no air",
+                    ).forEach { (verdict, meaning) ->
+                        TableRow {
+                            Column {
+                                Label(
+                                    verdict,
+                                    color = verdictColour(verdict),
+                                    size = Size.CAPTION.toFloat(),
+                                    weight = FontWeight.SemiBold,
+                                )
+                                Caption(meaning, Modifier.padding(top = 1.dp))
+                            }
+                        }
                     }
                 }
             }
+            VSpace(10)
+            Caption(
+                "Only Pass and Good count as a pass — a Weak channel is reported as a failure " +
+                    "even though it did move. If the source itself never develops pressure, " +
+                    "every channel is marked Pump failed at once, because that is one fault " +
+                    "and not six.",
+            )
         }
-        VSpace(10)
-        Caption(
-            "Only Pass and Good count as a pass — a Weak channel is reported as a failure " +
-                "even though it did move. If the source itself never develops pressure, every " +
-                "channel is marked Pump failed at once, because that is one fault and not six.",
-        )
         VSpace(24)
     }
 }
