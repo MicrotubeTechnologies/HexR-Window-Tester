@@ -5,8 +5,9 @@ and how fast, then judges it. This is the pass/fail check you run on a glove
 coming off the bench or back from a customer; screen 02 is for exploring, this
 is for deciding.
 
-Ported from the Unity app's Quick Test, with the same verdict thresholds so
-results stay comparable with anything recorded before.
+Ported from the Unity app's Quick Test. The verdict thresholds have since been
+retuned, so results are not directly comparable with anything the Unity app
+recorded.
 """
 
 from __future__ import annotations
@@ -22,15 +23,22 @@ from .base import Screen, section_label
 
 SETTLE_S = 0.6      # vent and let the channels fall back before baselining
 DRIVE_S = 2.0       # how long each channel is held at full
-PERFECT_KPA = 45.0
-GOOD_KPA = 40.0
+PASS_KPA = 45.0     # full strength
+GOOD_KPA = 40.0     # within tolerance
+WEAK_KPA = 30.0     # reached pressure, but never got to full
+# A channel that never moves at all is not a weak indenter — it is getting no
+# air. Sensors on a dead channel float on noise rather than reading a clean
+# 0.0, so anything under this counts as nothing.
+ZERO_KPA = 1.0
 # If the source/tank never develops pressure, every channel fails for one
 # reason — a dead pump — and reporting six failed indenters would send someone
 # replacing the wrong part.
 SOURCE_MIN_KPA = 10.0
 
+PASSING = ("Pass", "Good")
+
 VERDICT_COLOURS = {
-    "Perfect": T.SUCCESS,
+    "Pass": T.SUCCESS,
     "Good": T.SUCCESS,
     "Weak": T.ACCENT,
     "Indenter failed": T.DANGER,
@@ -208,12 +216,15 @@ class QuickTestScreen(Screen):
 
         pump_dead = self._source_peak < SOURCE_MIN_KPA
         failures = 0
+        starved = 0        # channels that read nothing at all
         for finger in P.ALL_FINGERS:
             chan = int(finger)
             peak = self._peak[chan]
             verdict = self._verdict(peak, pump_dead)
-            if verdict not in ("Perfect", "Good"):
+            if verdict not in PASSING:
                 failures += 1
+            if verdict == "Pump failed":
+                starved += 1
             cells = self._rows[chan]
             cells[1].configure(text=f"{peak:.1f} kPa")
             cells[2].configure(
@@ -227,6 +238,18 @@ class QuickTestScreen(Screen):
                 text=f"The source never rose above {self._source_peak:.1f} kPa, "
                      "so no channel could have reached pressure. This is one "
                      "fault in the pump or its supply, not six failed indenters.",
+                fg=T.DANGER)
+        elif starved:
+            # Source gauge looks healthy but the air is not arriving, so the
+            # fault is upstream of the indenters even though only some
+            # channels show it — a blocked line or a valve that never opened.
+            self.status.configure(text=f"{failures} of 6 channels failed",
+                                  fg=T.DANGER)
+            self.summary.configure(
+                text=f"Source reached {self._source_peak:.1f} kPa, but "
+                     f"{starved} of 6 channels read nothing at all. Those are "
+                     "getting no air — check the supply line and valves before "
+                     "the indenters.",
                 fg=T.DANGER)
         elif failures:
             self.status.configure(text=f"{failures} of 6 channels failed",
@@ -243,13 +266,15 @@ class QuickTestScreen(Screen):
 
     @staticmethod
     def _verdict(peak: float, pump_dead: bool) -> str:
-        if pump_dead:
+        # A channel reading nothing is a supply fault whatever the source
+        # gauge says — the gauge can look healthy while the air never arrives.
+        if pump_dead or peak < ZERO_KPA:
             return "Pump failed"
-        if peak > PERFECT_KPA:
-            return "Perfect"
+        if peak > PASS_KPA:
+            return "Pass"
         if peak > GOOD_KPA:
             return "Good"
-        if peak > SOURCE_MIN_KPA:
+        if peak > WEAK_KPA:
             return "Weak"
         return "Indenter failed"
 

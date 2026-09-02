@@ -160,17 +160,22 @@ customer.
 Press **Run quick test**. It vents everything, drives all six channels hard for
 two seconds, and reports what each one reached:
 
-| Verdict | Meaning |
-|---|---|
-| **Perfect** | Above 45 kPa — full strength |
-| **Good** | Above 40 kPa — within tolerance |
-| **Weak** | Reached pressure but not enough — check the indenter and its tubing |
-| **Indenter failed** | Essentially nothing — that channel is not working |
-| **Pump failed** | The source never developed pressure |
+| Verdict | Peak reached | Meaning |
+|---|---|---|
+| **Pass** | Above 45 kPa | Full strength |
+| **Good** | 40 – 45 kPa | Within tolerance |
+| **Weak** | 30 – 40 kPa | Never got to full — check the indenter and its tubing |
+| **Indenter failed** | Under 30 kPa | Barely moved — that channel is not working |
+| **Pump failed** | Nothing at all | No air is reaching that channel |
 
-**Pump failed appears on every channel at once**, because it is one fault, not
-six. If you see it, the problem is the pump or its supply — do not go replacing
-indenters.
+Only **Pass** and **Good** count as a pass. A **Weak** channel is reported as a
+failure even though it did move.
+
+**Pump failed** means a channel read essentially nothing — under 1 kPa. That is
+not a weak indenter, it is a channel getting no air, so look at the supply line
+and the valve before you touch the indenter. If the source itself never
+developed pressure, **every** channel is marked Pump failed at once, because it
+is one fault, not six — do not go replacing indenters.
 
 *Time to peak* is the other half of the picture. A channel that reaches
 pressure but takes much longer than its neighbours usually means a restriction
