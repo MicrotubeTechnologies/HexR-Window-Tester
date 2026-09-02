@@ -85,7 +85,7 @@ fun TestScreen(vm: HexrViewModel) {
             value = vm.intensity.toFloat(),
             range = 0f..100f,
             trailing = { MonoText("${vm.intensity}%", color = T.ACCENT) },
-            onChange = { vm.setIntensity(it.toInt()) },
+            onChange = { vm.intensity = it.toInt() },
         )
 
         // -- frequency ------------------------------------------------------------
@@ -98,7 +98,7 @@ fun TestScreen(vm: HexrViewModel) {
                 trailing = {
                     FrequencyToggle(on = vm.frequency > 0, hz = vm.frequency, onClick = vm::toggleFrequency)
                 },
-                onChange = { vm.setFrequency(it.toInt()) },
+                onChange = { vm.frequency = it.toInt() },
             )
             Caption(
                 if (vm.frequency == 0) {

@@ -117,8 +117,20 @@ class HexrViewModel(app: Application) : AndroidViewModel(app) {
 
     var channels by mutableStateOf(setOf(Protocol.Finger.Index.channel))
 
-    /** 0-100. Maps onto the protocol's 0.1-1.0 window; exactly 0 means off. */
-    var intensity by mutableStateOf(60)
+    /**
+     * 0-100. Maps onto the protocol's 0.1-1.0 window; exactly 0 means off.
+     *
+     * Written through a custom setter so a change lands on a channel that is
+     * already driving. Pushing the new value only on the next Trigger would let
+     * the slider and the glove disagree about what is happening right now.
+     */
+    private var intensityState by mutableStateOf(60)
+    var intensity: Int
+        get() = intensityState
+        set(value) {
+            intensityState = value.coerceIn(0, 100)
+            if (driving) engine.send(hand, frames(true))
+        }
 
     /**
      * 0-20 Hz, where **0 means steady pressure, not silence**.
@@ -128,7 +140,14 @@ class HexrViewModel(app: Application) : AndroidViewModel(app) {
      * distinction is a frequency of zero versus a frequency above it, so the
      * one control now says the same thing the wire does.
      */
-    var frequency by mutableStateOf(0)
+    private var frequencyState by mutableStateOf(0)
+    var frequency: Int
+        get() = frequencyState
+        set(value) {
+            frequencyState = value.coerceIn(0, MAX_FREQUENCY_HZ)
+            if (frequencyState > 0) lastFrequency = frequencyState
+            if (driving) engine.send(hand, frames(true))
+        }
 
     /** What the frequency toggle restores when switched back on. */
     private var lastFrequency = 6
@@ -299,19 +318,8 @@ class HexrViewModel(app: Application) : AndroidViewModel(app) {
 
     fun canDrive(): Boolean = channels.isNotEmpty() && handConnected()
 
-    fun setFrequency(hz: Int) {
-        frequency = hz.coerceIn(0, MAX_FREQUENCY_HZ)
-        if (frequency > 0) lastFrequency = frequency
-        if (driving) engine.send(hand, frames(true))
-    }
-
     fun toggleFrequency() {
-        if (frequency == 0) setFrequency(lastFrequency) else setFrequency(0)
-    }
-
-    fun setIntensity(pct: Int) {
-        intensity = pct.coerceIn(0, 100)
-        if (driving) engine.send(hand, frames(true))
+        frequency = if (frequency == 0) lastFrequency else 0
     }
 
     /** Start output on the selected channels of the selected glove. */
