@@ -1,6 +1,9 @@
 package com.microtube.hexr
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
+import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -74,14 +77,43 @@ class MainActivity : ComponentActivity() {
 
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
-    ) { vm.permissionsGranted = vm.engine.hasPermissions() }
+    ) {
+        vm.permissionsGranted = vm.engine.hasPermissions()
+        // A denial with no rationale left to show means Android will not put
+        // the dialog up again. Record it so the screen can offer Settings
+        // rather than a button that now does nothing at all.
+        vm.mustUseSettings = !vm.permissionsGranted &&
+            vm.engine.requiredPermissions.none { shouldShowRequestPermissionRationale(it) }
+    }
+
+    /** The app's own page in system Settings, where the grant can be given. */
+    private fun openAppSettings() {
+        startActivity(
+            Intent(
+                Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                Uri.fromParts("package", packageName, null),
+            ),
+        )
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
             HexrTheme {
-                AppRoot(vm) { permissionLauncher.launch(vm.engine.requiredPermissions) }
+                AppRoot(
+                    vm = vm,
+                    onRequestPermissions = {
+                        if (vm.mustUseSettings) {
+                            openAppSettings()
+                        } else {
+                            permissionLauncher.launch(vm.engine.requiredPermissions)
+                        }
+                    },
+                    onOpenBluetoothSettings = {
+                        startActivity(Intent(Settings.ACTION_BLUETOOTH_SETTINGS))
+                    },
+                )
             }
         }
     }
@@ -91,6 +123,7 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         vm.permissionsGranted = vm.engine.hasPermissions()
+        if (vm.permissionsGranted) vm.mustUseSettings = false
     }
 
     /**
@@ -113,7 +146,11 @@ private enum class Tab(val label: String) {
 }
 
 @Composable
-private fun AppRoot(vm: HexrViewModel, onRequestPermissions: () -> Unit) {
+private fun AppRoot(
+    vm: HexrViewModel,
+    onRequestPermissions: () -> Unit,
+    onOpenBluetoothSettings: () -> Unit,
+) {
     var tab by remember { mutableStateOf(Tab.Connect) }
     var splash by remember { mutableStateOf(true) }
     var splashFading by remember { mutableStateOf(false) }
@@ -142,7 +179,7 @@ private fun AppRoot(vm: HexrViewModel, onRequestPermissions: () -> Unit) {
         ) { pad ->
             Box(Modifier.padding(pad).fillMaxSize()) {
                 when (tab) {
-                    Tab.Connect -> ConnectScreen(vm, onRequestPermissions)
+                    Tab.Connect -> ConnectScreen(vm, onRequestPermissions, onOpenBluetoothSettings)
                     Tab.Test -> TestScreen(vm)
                     Tab.Quick -> QuickTestScreen(vm)
                 }

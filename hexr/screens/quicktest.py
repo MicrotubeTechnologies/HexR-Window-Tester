@@ -23,26 +23,25 @@ from .base import Screen, section_label
 
 SETTLE_S = 0.6      # vent and let the channels fall back before baselining
 DRIVE_S = 2.0       # how long each channel is held at full
-PASS_KPA = 45.0     # full strength
-GOOD_KPA = 40.0     # within tolerance
-WEAK_KPA = 30.0     # reached pressure, but never got to full
-# A channel that never moves at all is not a weak indenter — it is getting no
-# air. Sensors on a dead channel float on noise rather than reading a clean
-# 0.0, so anything under this counts as nothing.
-ZERO_KPA = 1.0
-# If the source/tank never develops pressure, every channel fails for one
-# reason — a dead pump — and reporting six failed indenters would send someone
-# replacing the wrong part.
+# Three words, because three is what a decision needs: the channel is doing its
+# job, it is doing some of it, or it is not doing it.
+GOOD_KPA = 40.0     # above this the channel is delivering full pressure
+FAIL_KPA = 2.0      # below this it is not working at all
+# Sensors on a dead channel float on noise rather than reading a clean 0.0,
+# which is why the failure line sits at 2 kPa and not at zero.
+
+# If the source/tank never develops pressure, every channel reads Fail for one
+# reason — a dead pump — and reporting six dead channels would send someone
+# replacing the wrong parts. This does not change any channel's verdict; it
+# changes what the summary tells you to go and look at.
 SOURCE_MIN_KPA = 10.0
 
-PASSING = ("Pass", "Good")
+PASSING = ("Good",)
 
 VERDICT_COLOURS = {
-    "Pass": T.SUCCESS,
     "Good": T.SUCCESS,
-    "Weak": T.ACCENT,
-    "Indenter failed": T.DANGER,
-    "Pump failed": T.DANGER,
+    "Poor": T.ACCENT,
+    "Fail": T.DANGER,
 }
 
 
@@ -215,16 +214,17 @@ class QuickTestScreen(Screen):
         self.run_btn.set(text="Run quick test", glyph="▶")
 
         pump_dead = self._source_peak < SOURCE_MIN_KPA
-        failures = 0
-        starved = 0        # channels that read nothing at all
+        good = poor = failed = 0
         for finger in P.ALL_FINGERS:
             chan = int(finger)
             peak = self._peak[chan]
-            verdict = self._verdict(peak, pump_dead)
-            if verdict not in PASSING:
-                failures += 1
-            if verdict == "Pump failed":
-                starved += 1
+            verdict = self._verdict(peak)
+            if verdict == "Good":
+                good += 1
+            elif verdict == "Poor":
+                poor += 1
+            else:
+                failed += 1
             cells = self._rows[chan]
             cells[1].configure(text=f"{peak:.1f} kPa")
             cells[2].configure(
@@ -232,51 +232,48 @@ class QuickTestScreen(Screen):
             cells[3].configure(text=verdict,
                                fg=VERDICT_COLOURS.get(verdict, T.TEXT_2))
 
+        breakdown = f"{good} good, {poor} poor, {failed} failed"
+        source = f"Source reached {self._source_peak:.1f} kPa"
+
         if pump_dead:
             self.status.configure(text="Pump failed", fg=T.DANGER)
             self.summary.configure(
                 text=f"The source never rose above {self._source_peak:.1f} kPa, "
                      "so no channel could have reached pressure. This is one "
-                     "fault in the pump or its supply, not six failed indenters.",
+                     "fault in the pump or its supply, not six failed channels.",
                 fg=T.DANGER)
-        elif starved:
-            # Source gauge looks healthy but the air is not arriving, so the
-            # fault is upstream of the indenters even though only some
-            # channels show it — a blocked line or a valve that never opened.
-            self.status.configure(text=f"{failures} of 6 channels failed",
+        elif failed:
+            self.status.configure(text=f"{failed} of 6 channels failed",
                                   fg=T.DANGER)
             self.summary.configure(
-                text=f"Source reached {self._source_peak:.1f} kPa, but "
-                     f"{starved} of 6 channels read nothing at all. Those are "
-                     "getting no air — check the supply line and valves before "
-                     "the indenters.",
+                text=f"{source}, so supply is fine — a channel reading nothing "
+                     "with a healthy source is a blocked line, a valve that "
+                     f"never opened, or a dead indenter. {breakdown}.",
                 fg=T.DANGER)
-        elif failures:
-            self.status.configure(text=f"{failures} of 6 channels failed",
-                                  fg=T.DANGER)
+        elif poor:
+            self.status.configure(text=f"{poor} of 6 channels poor", fg=T.ACCENT)
             self.summary.configure(
-                text=f"Source reached {self._source_peak:.1f} kPa, so supply is "
-                     "fine — the failing channels are indenter or valve faults.",
+                text=f"{source}. Every channel moved, but not all of them "
+                     "reached full pressure — check the tubing on the weak "
+                     f"ones. {breakdown}.",
                 fg=T.TEXT_MUTED)
         else:
-            self.status.configure(text="All 6 channels passed", fg=T.SUCCESS)
-            self.summary.configure(
-                text=f"Source reached {self._source_peak:.1f} kPa.",
-                fg=T.TEXT_MUTED)
+            self.status.configure(text="All 6 channels good", fg=T.SUCCESS)
+            self.summary.configure(text=f"{source}.", fg=T.TEXT_MUTED)
 
     @staticmethod
-    def _verdict(peak: float, pump_dead: bool) -> str:
-        # A channel reading nothing is a supply fault whatever the source
-        # gauge says — the gauge can look healthy while the air never arrives.
-        if pump_dead or peak < ZERO_KPA:
-            return "Pump failed"
-        if peak > PASS_KPA:
-            return "Pass"
+    def _verdict(peak: float) -> str:
+        """Good / Poor / Fail, from the peak this channel reached.
+
+        The source reading does not enter into it. A channel is judged on what
+        it delivered; whether a healthy pump or a dead one is the reason sits in
+        the summary, where it can be said once instead of six times.
+        """
         if peak > GOOD_KPA:
             return "Good"
-        if peak > WEAK_KPA:
-            return "Weak"
-        return "Indenter failed"
+        if peak >= FAIL_KPA:
+            return "Poor"
+        return "Fail"
 
     # -- rendering -----------------------------------------------------------
 

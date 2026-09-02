@@ -162,24 +162,16 @@ two seconds, and reports what each one reached:
 
 | Verdict | Peak reached | Meaning |
 |---|---|---|
-| **Pass** | Above 45 kPa | Full strength |
-| **Good** | 40 – 45 kPa | Within tolerance |
-| **Weak** | 30 – 40 kPa | Never got to full — check the indenter and its tubing |
-| **Indenter failed** | Under 30 kPa | Barely moved — that channel is not working |
-| **Pump failed** | Nothing at all | No air is reaching that channel |
+| **Good** | Above 40 kPa | Full pressure |
+| **Poor** | 2 – 40 kPa | Moved, but never got to full — check the tubing |
+| **Fail** | Under 2 kPa | Not working |
 
-Only **Pass** and **Good** count as a pass. A **Weak** channel is reported as a
-failure even though it did move.
+The failure line sits at 2 kPa rather than at zero because the sensor on a dead
+channel floats on noise instead of reading a clean 0.0.
 
-**Pump failed** means a channel read essentially nothing — under 1 kPa. That is
-not a weak indenter, it is a channel getting no air, so look at the supply line
-and the valve before you touch the indenter. If the source itself never
-developed pressure, **every** channel is marked Pump failed at once, because it
-is one fault, not six — do not go replacing indenters.
-
-*Time to peak* is the other half of the picture. A channel that reaches
-pressure but takes much longer than its neighbours usually means a restriction
-or a small leak, even when the verdict says it passed.
+**If the source never develops pressure**, every channel reads Fail for one
+reason — a dead pump. The summary says so once rather than blaming six
+channels, so don't go replacing indenters.
 
 Quick test needs telemetry. If the glove is not reporting, the app will say so
 rather than invent numbers.

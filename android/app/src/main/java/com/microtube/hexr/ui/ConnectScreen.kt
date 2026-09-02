@@ -25,7 +25,11 @@ import com.microtube.hexr.HexrViewModel
  * chooser you pick one out of.
  */
 @Composable
-fun ConnectScreen(vm: HexrViewModel, onRequestPermissions: () -> Unit) {
+fun ConnectScreen(
+    vm: HexrViewModel,
+    onRequestPermissions: () -> Unit,
+    onOpenBluetoothSettings: () -> Unit,
+) {
     Column(
         Modifier
             .fillMaxWidth()
@@ -43,34 +47,49 @@ fun ConnectScreen(vm: HexrViewModel, onRequestPermissions: () -> Unit) {
             )
         }
 
-        if (!vm.permissionsGranted) {
-            Card(Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(16.dp)) {
-                    Label("Bluetooth permission needed", weight = FontWeight.SemiBold)
-                    Caption(
-                        "Android will not let the app see a glove until you allow it to find " +
-                            "and connect to nearby devices.",
-                        Modifier.padding(top = 6.dp),
-                        T.TEXT_2,
-                    )
-                    VSpace(14)
-                    PrimaryButton(
-                        "Allow Bluetooth",
-                        Modifier.fillMaxWidth(),
-                        onClick = onRequestPermissions,
-                    )
-                }
-            }
+        // One block that names whatever is actually in the way. The previous
+        // version showed a dimmed Scan button and left the reason to be
+        // guessed, which is exactly the situation where a tester starts
+        // suspecting the glove.
+        when (vm.scanBlocker()) {
+            "permission" -> BlockerCard(
+                title = "Bluetooth permission needed",
+                body = if (vm.mustUseSettings) {
+                    "Android will not ask again from inside the app. Open the app's " +
+                        "settings and allow Nearby devices."
+                } else {
+                    "Android will not let the app see a glove until you allow it to find " +
+                        "and connect to nearby devices."
+                },
+                action = if (vm.mustUseSettings) "Open app settings" else "Allow Bluetooth",
+                onAction = onRequestPermissions,
+            )
+
+            "bluetooth" -> BlockerCard(
+                title = "Bluetooth is switched off",
+                body = "The permission is granted, but the phone's radio is off. Turn " +
+                    "Bluetooth on and this clears on its own.",
+                action = "Open Bluetooth settings",
+                onAction = onOpenBluetoothSettings,
+            )
         }
 
         Column {
             PrimaryButton(
                 if (vm.scanning) "Scanning…" else "Scan for gloves",
                 Modifier.fillMaxWidth(),
-                enabled = vm.permissionsGranted && !vm.scanning,
+                enabled = vm.scanBlocker() == null && !vm.scanning,
                 onClick = vm::startScan,
             )
-            Caption(vm.scanStatus, Modifier.padding(top = 10.dp), vm.scanTone.color())
+            Caption(
+                when (vm.scanBlocker()) {
+                    "permission" -> "Allow Bluetooth first"
+                    "bluetooth" -> "Turn Bluetooth on first"
+                    else -> vm.scanStatus
+                },
+                Modifier.padding(top = 10.dp),
+                if (vm.scanBlocker() == null) vm.scanTone.color() else T.TEXT_5,
+            )
         }
 
         if (vm.found.isNotEmpty()) {
@@ -203,3 +222,16 @@ fun ConnectScreen(vm: HexrViewModel, onRequestPermissions: () -> Unit) {
  * channels really are, which is exactly what the quick test measures.
  */
 private const val SMALL_MTU = 111
+
+/** Names one thing standing between the user and a scan, and offers the fix. */
+@Composable
+private fun BlockerCard(title: String, body: String, action: String, onAction: () -> Unit) {
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp)) {
+            Label(title, weight = FontWeight.SemiBold)
+            Caption(body, Modifier.padding(top = 6.dp), T.TEXT_2)
+            VSpace(14)
+            PrimaryButton(action, Modifier.fillMaxWidth(), onClick = onAction)
+        }
+    }
+}

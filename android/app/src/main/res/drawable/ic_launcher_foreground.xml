@@ -1,12 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  The same mark the desktop tester draws in tools/make_icon.py: a flat-topped
-  hexagon outline with a solid contact point at its centre — the HEX in HEXR,
-  and the point of contact is what the glove is actually for.
+  The HEXR mark from the design handoff: a pointy-top hexagon outline with a
+  smaller filled hexagon - the channel dot - at its centre. The same mark the
+  app draws in its header lockup and on the splash, so the launcher icon and the
+  first screen are the same object.
 
-  Geometry is sized to the adaptive-icon safe zone. The foreground canvas is
-  108dp but a launcher may mask it to the inner 72dp, so the hexagon's radius
-  (30) plus half its stroke (4.5) keeps the whole mark inside 69dp.
+  Geometry is the handoff's 60x60 polygon scaled 1.1x about the centre of the
+  108dp adaptive-icon canvas. With its 5dp stroke the mark spans 60x64dp, inside
+  the 72dp circle a launcher may mask to.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
@@ -15,13 +16,12 @@
     android:viewportHeight="108">
 
     <path
-        android:pathData="M84,54 L69,79.98 L39,79.98 L24,54 L39,28.02 L69,28.02 Z"
-        android:strokeColor="#FFFFFF"
-        android:strokeWidth="9"
-        android:strokeLineJoin="round"
-        android:strokeLineCap="round" />
+        android:pathData="M54,24.3 L81.5,39.15 L81.5,68.85 L54,83.7 L26.5,68.85 L26.5,39.15 Z"
+        android:strokeColor="#F4762A"
+        android:strokeWidth="5"
+        android:strokeLineJoin="round" />
 
     <path
-        android:pathData="M44.5,54 a9.5,9.5 0 1,0 19,0 a9.5,9.5 0 1,0 -19,0"
-        android:fillColor="#FFFFFF" />
+        android:pathData="M54,43 L66.1,50.15 L66.1,57.85 L54,65 L41.9,57.85 L41.9,50.15 Z"
+        android:fillColor="#F4762A" />
 </vector>

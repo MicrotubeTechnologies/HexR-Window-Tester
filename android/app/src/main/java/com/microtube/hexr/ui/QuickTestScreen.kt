@@ -29,17 +29,15 @@ import com.microtube.hexr.Tone
  * and how fast, then judges it. Screen 02 is for exploring; this is for
  * deciding.
  *
- * The verdict set is the desktop tester's, not the design mock's simplified
- * pass/fail: those five names carry real diagnostic meaning — an indenter that
- * barely moved and a channel getting no air at all send someone to different
- * parts of the glove — and a result recorded on a phone has to mean the same as
- * one recorded on a bench laptop.
+ * Three verdicts, matching the desktop tester exactly so a result recorded on a
+ * phone means what one recorded on a bench laptop means: Good above 40 kPa,
+ * Poor down to 2, Fail below that.
  */
 
 private fun verdictColour(verdict: String?): Color = when (verdict) {
-    "Pass", "Good" -> T.GREEN
-    "Weak" -> T.AMBER
-    "Indenter failed", "Pump failed" -> T.RED
+    "Good" -> T.GREEN
+    "Poor" -> T.AMBER
+    "Fail" -> T.RED
     else -> T.TEXT_4
 }
 
@@ -162,11 +160,9 @@ fun QuickTestScreen(vm: HexrViewModel) {
             Card(Modifier.fillMaxWidth()) {
                 Column {
                     listOf(
-                        "Pass" to "above ${QuickTest.PASS_KPA.toInt()} kPa · full strength",
-                        "Good" to "${QuickTest.GOOD_KPA.toInt()}–${QuickTest.PASS_KPA.toInt()} kPa · within tolerance",
-                        "Weak" to "${QuickTest.WEAK_KPA.toInt()}–${QuickTest.GOOD_KPA.toInt()} kPa · never got to full",
-                        "Indenter failed" to "under ${QuickTest.WEAK_KPA.toInt()} kPa · barely moved",
-                        "Pump failed" to "nothing at all · that channel is getting no air",
+                        "Good" to "above ${QuickTest.GOOD_KPA.toInt()} kPa · full pressure",
+                        "Poor" to "${QuickTest.FAIL_KPA.toInt()}–${QuickTest.GOOD_KPA.toInt()} kPa · moved, but never got to full",
+                        "Fail" to "under ${QuickTest.FAIL_KPA.toInt()} kPa · not working",
                     ).forEachIndexed { i, (verdict, meaning) ->
                         TableRow {
                             Column {
@@ -179,16 +175,15 @@ fun QuickTestScreen(vm: HexrViewModel) {
                                 Caption(meaning, Modifier.padding(top = 1.dp), size = Size.LABEL)
                             }
                         }
-                        if (i < 4) Hairline()
+                        if (i < 2) Hairline()
                     }
                 }
             }
             VSpace(10)
             Caption(
-                "Only Pass and Good count as a pass — a Weak channel is reported as a failure " +
-                    "even though it did move. If the source itself never develops pressure, " +
-                    "every channel is marked Pump failed at once, because that is one fault " +
-                    "and not six.",
+                "A Poor channel is working but under strength — usually its tubing. If the " +
+                    "source itself never develops pressure the summary says so once, rather " +
+                    "than blaming six channels for one dead pump.",
             )
         }
 
