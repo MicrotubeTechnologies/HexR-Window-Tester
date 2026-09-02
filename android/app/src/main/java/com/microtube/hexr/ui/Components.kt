@@ -35,6 +35,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.microtube.hexr.Tone
+
+/** Maps a status line's severity onto the palette. */
+fun Tone.color(): Color = when (this) {
+    Tone.Muted -> T.TEXT_2
+    Tone.Accent -> T.ACCENT
+    Tone.Success -> T.GREEN
+    Tone.Danger -> T.RED
+}
 
 // -- text ---------------------------------------------------------------------
 
