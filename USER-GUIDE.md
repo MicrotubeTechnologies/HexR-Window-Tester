@@ -178,6 +178,18 @@ rather than invent numbers.
 
 ---
 
+## The window
+
+The title bar carries the usual three controls at the top right: **minimise**,
+**maximise** and **close**. Maximise fills the monitor the window is on, up to
+the taskbar, and the same button restores it to exactly where it was. A
+double-click anywhere on the title bar does the same thing, and dragging a
+maximised window pulls it loose under the cursor.
+
+Drag the bar to move the window. There is no OS frame — the app draws its own.
+
+---
+
 ## Safety
 
 A haptic glove can hold a finger squeezed. Three ways to stop everything:

@@ -21,7 +21,8 @@ import sys
 import tkinter as tk
 
 from . import theme as T
-from .widgets import Button, IconButton, NavRow, StatusPill
+from .widgets import (Button, IconButton, NavRow, StatusPill,
+                      paint_maximise, paint_restore)
 
 # Connect a glove, drive it, then run the canned QA sweep. Testing a single
 # channel by hand and running the full sweep are different jobs — one is
@@ -48,6 +49,9 @@ class Shell:
         self.screen = "connect"
         self._screens: dict[str, tk.Frame] = {}
         self._run_state = (None, None)
+        # Where the window sits when it is not filling the screen. Restored
+        # verbatim, so maximising and unmaximising is lossless.
+        self._normal: tuple[int, int, int, int] | None = None
 
         self._set_window_icon(root)
         root.configure(bg=T.SURFACE)
@@ -152,6 +156,69 @@ class Shell:
         self.root.unbind("<Map>")
         self.root.overrideredirect(True)
 
+    @property
+    def maximised(self) -> bool:
+        return self._normal is not None
+
+    def _work_area(self) -> tuple[int, int, int, int]:
+        """The usable rectangle of the monitor the window is on.
+
+        The work area, not the full screen — filling the screen would put the
+        title bar's own controls behind the taskbar. Asked of the current
+        monitor rather than the primary one, because a bench PC often has two.
+
+        The process is DPI-unaware, so Windows hands it virtualised
+        coordinates; these are the same units Tk's geometry strings use and
+        need no conversion.
+        """
+        if sys.platform == "win32":
+            try:
+                user32 = ctypes.windll.user32
+
+                class RECT(ctypes.Structure):
+                    _fields_ = [("left", ctypes.c_long), ("top", ctypes.c_long),
+                                ("right", ctypes.c_long), ("bottom", ctypes.c_long)]
+
+                class MONITORINFO(ctypes.Structure):
+                    _fields_ = [("cbSize", ctypes.c_ulong), ("rcMonitor", RECT),
+                                ("rcWork", RECT), ("dwFlags", ctypes.c_ulong)]
+
+                MONITOR_DEFAULTTONEAREST = 2
+                hmon = user32.MonitorFromWindow(_hwnd_of(self.root),
+                                                MONITOR_DEFAULTTONEAREST)
+                mi = MONITORINFO()
+                mi.cbSize = ctypes.sizeof(MONITORINFO)
+                if user32.GetMonitorInfoW(hmon, ctypes.byref(mi)):
+                    r = mi.rcWork
+                    return r.left, r.top, r.right - r.left, r.bottom - r.top
+            except Exception:
+                pass
+        return 0, 0, self.root.winfo_screenwidth(), self.root.winfo_screenheight()
+
+    def toggle_maximise(self):
+        if self.maximised:
+            self._restore()
+        else:
+            self._maximise()
+
+    def _maximise(self):
+        if self.maximised:
+            return
+        self.root.update_idletasks()
+        self._normal = (self.root.winfo_width(), self.root.winfo_height(),
+                        self.root.winfo_x(), self.root.winfo_y())
+        x, y, w, h = self._work_area()
+        self.root.geometry(f"{w}x{h}+{x}+{y}")
+        self.max_btn.set_painter(paint_restore)
+
+    def _restore(self):
+        if not self.maximised:
+            return
+        w, h, x, y = self._normal
+        self._normal = None
+        self.root.geometry(f"{w}x{h}+{x}+{y}")
+        self.max_btn.set_painter(paint_maximise)
+
     # -- title bar -----------------------------------------------------------
 
     def _build_titlebar(self):
@@ -179,18 +246,32 @@ class Shell:
 
         right = tk.Frame(bar, bg=T.RAISED)
         right.pack(side="right", padx=(0, 6))
+        # Right to left, so they end up in the order Windows puts them:
+        # minimise, maximise, close.
         IconButton(right, "✕", command=self.close, hover_bg=T.DANGER,
                    hover_fg="#FFFFFF").pack(side="right")
+        self.max_btn = IconButton(right, painter=paint_maximise,
+                                  command=self.toggle_maximise)
+        self.max_btn.pack(side="right")
         IconButton(right, "–", command=self.minimise).pack(side="right")
 
-        # dragging
+        # dragging, and double-click to maximise as any title bar does
         for w in (bar, left) + tuple(left.winfo_children()):
             w.bind("<Button-1>", self._drag_start)
             w.bind("<B1-Motion>", self._drag_move)
+            w.bind("<Double-Button-1>", lambda _e: self.toggle_maximise())
 
         tk.Frame(self.root, bg=T.BORDER_SOFT, height=1).pack(fill="x")
 
     def _drag_start(self, e):
+        if self.maximised:
+            # Pull a maximised window down and it comes loose under the
+            # cursor, keeping the same relative grip on its title bar.
+            grip = e.x_root / max(1, self.root.winfo_width())
+            w = self._normal[0]
+            self._restore()
+            self.root.geometry(f"+{int(e.x_root - w * grip)}+{max(0, e.y_root - 18)}")
+            self.root.update_idletasks()
         self._drag = (e.x_root - self.root.winfo_x(),
                       e.y_root - self.root.winfo_y())
 
