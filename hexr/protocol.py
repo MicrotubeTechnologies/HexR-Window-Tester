@@ -217,8 +217,20 @@ def batch(frames) -> bytes:
 
 
 def all_off(fingers=ALL_FINGERS) -> bytes:
-    """Release every channel. Sent on disconnect, on close, and on demand."""
-    return batch(pressure(f, False, 0, 1.0) for f in fingers)
+    """Stop every channel on every path. Sent on disconnect, on close, on demand.
+
+    Both opcodes, deliberately. A channel driven with `vibration` is not stopped
+    by a `pressure` exit: above `PWM_VIBRATION_HZ` the firmware turns the
+    pressure loop off entirely and drives the channel's motor directly, so a
+    frame that only sets a pressure target of zero never reaches what is
+    actually running.
+
+    The vibration exits go first and the pressure exits last, so the final word
+    on every channel is a zero target with the loop released.
+    """
+    return batch(
+        [vibration(f, False, 0.0, 0) for f in fingers]
+        + [pressure(f, False, 0, 1.0) for f in fingers])
 
 
 # -- inbound decoding -------------------------------------------------------

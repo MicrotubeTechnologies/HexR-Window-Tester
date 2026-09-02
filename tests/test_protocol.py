@@ -104,17 +104,36 @@ def test_speed_and_peak_ratio_byte_ranges():
 
 # -- batching ---------------------------------------------------------------
 
-def test_all_off_is_six_walkable_frames():
+def test_all_off_stops_both_opcodes_on_every_channel():
+    """A pressure exit does not stop a vibrating channel.
+
+    Above PWM_VIBRATION_HZ the firmware disables the pressure loop and drives
+    the motor directly, so a frame that only zeroes a pressure target never
+    reaches what is running. all_off has to exit both paths or "release all"
+    leaves a channel buzzing.
+    """
     data = P.all_off()
-    assert len(data) == 18 * 6
+    assert len(data) == 18 * 12
+
     # The firmware walks concatenated frames using byte 0 as the stride.
     offset, seen = 0, []
     while offset < len(data):
         length = data[offset]
         assert length == 18
-        seen.append(data[offset + 8])
+        seen.append((data[offset + 1], data[offset + 8], data[offset + 10]))
         offset += length
-    assert seen == [int(f) for f in P.ALL_FINGERS]
+
+    channels = [int(f) for f in P.ALL_FINGERS]
+    assert seen == (
+        [(P.Op.SET_VIBRATION, c, P.STATE_EXIT) for c in channels]
+        + [(P.Op.SET_PRESSURE, c, P.STATE_EXIT) for c in channels])
+
+
+def test_all_off_ends_on_the_pressure_exit():
+    """Order matters: the last word on a channel is a zero pressure target."""
+    data = P.all_off()
+    assert data[-18 + 1] == P.Op.SET_PRESSURE
+    assert struct.unpack_from("<f", data, len(data) - 18 + 12)[0] == 0.0
 
 
 # -- names ------------------------------------------------------------------
