@@ -286,11 +286,17 @@ class Button(tk.Canvas):
 
 
 class IconButton(tk.Canvas):
-    """A fixed-size square-ish glyph button — the title bar controls."""
+    """A fixed-size square-ish glyph button — the title bar controls.
 
-    def __init__(self, parent, glyph, command=None, width=44, height=34,
+    Either a text `glyph` or a `painter` that draws the mark directly. The
+    maximise and restore marks are drawn rather than typed: the conventional
+    code points for them (U+2750 and friends) are missing from IBM Plex, and a
+    window control that renders as a hollow box is worse than no icon at all.
+    """
+
+    def __init__(self, parent, glyph="", command=None, width=44, height=34,
                  fg=T.TEXT_MUTED, hover_bg=T.BORDER_SOFT, hover_fg=T.TEXT,
-                 bg=None, px=14):
+                 bg=None, px=14, painter=None):
         bg = bg or parent.cget("bg")
         super().__init__(parent, width=width, height=height, bg=bg,
                          highlightthickness=0, bd=0)
@@ -298,18 +304,49 @@ class IconButton(tk.Canvas):
         self.w, self.h = width, height
         self.fg, self.hover_bg, self.hover_fg, self._bg = fg, hover_bg, hover_fg, bg
         self._font = T.font(px)
+        self.painter = painter
+        self._hot = False
         self._render(False)
         self.bind("<Button-1>", lambda e: self.command and self.command())
         self.bind("<Enter>", lambda e: self._render(True))
         self.bind("<Leave>", lambda e: self._render(False))
         self.configure(cursor="hand2")
 
+    def set_painter(self, painter):
+        """Swap the mark in place — maximise becoming restore, and back."""
+        self.painter = painter
+        self._render(self._hot)
+
     def _render(self, hot):
+        self._hot = hot
         self.delete("all")
-        self.create_rectangle(0, 0, self.w, self.h, width=0,
-                              fill=self.hover_bg if hot else self._bg)
-        self.create_text(self.w / 2, self.h / 2, text=self.glyph,
-                         fill=self.hover_fg if hot else self.fg, font=self._font)
+        bg = self.hover_bg if hot else self._bg
+        fg = self.hover_fg if hot else self.fg
+        self.create_rectangle(0, 0, self.w, self.h, width=0, fill=bg)
+        if self.painter is not None:
+            self.painter(self, fg, bg)
+        else:
+            self.create_text(self.w / 2, self.h / 2, text=self.glyph,
+                             fill=fg, font=self._font)
+
+
+def paint_maximise(c: IconButton, fg: str, bg: str):
+    """An empty square: this window is not filling the screen yet."""
+    x, y, s = c.w / 2, c.h / 2, 4.5
+    c.create_rectangle(x - s, y - s, x + s, y + s, outline=fg, width=1.3)
+
+
+def paint_restore(c: IconButton, fg: str, bg: str):
+    """Two offset squares, the Windows restore mark.
+
+    The front square is filled with the button's own background so the two read
+    as overlapping sheets rather than as a grid.
+    """
+    x, y, s = c.w / 2, c.h / 2, 4.0
+    c.create_rectangle(x - s + 2.5, y - s - 2.5, x + s + 2.5, y + s - 2.5,
+                       outline=fg, width=1.3)
+    c.create_rectangle(x - s - 2.5, y - s + 2.5, x + s - 2.5, y + s + 2.5,
+                       outline=fg, width=1.3, fill=bg)
 
 
 class StatusPill(tk.Canvas):
