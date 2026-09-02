@@ -188,6 +188,15 @@ class HexrViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun tick() {
         val now = SystemClock.elapsedRealtime()
+
+        // Re-read the grant until it lands. A permission dialog pauses the
+        // activity without stopping it, so onStart does not fire on the way
+        // back and the launcher callback was the only thing updating this —
+        // leaving the Connect screen asking for a permission the user had
+        // already given. Checked only while ungranted, so it costs nothing
+        // once it is; a later revocation restarts the process anyway.
+        if (!permissionsGranted && engine.hasPermissions()) permissionsGranted = true
+
         gloves = HANDS.mapNotNull { hand ->
             val g = state.get(hand) ?: return@mapNotNull null
             hand to GloveSnapshot(

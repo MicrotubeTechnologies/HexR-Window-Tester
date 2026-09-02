@@ -54,7 +54,7 @@ fun TestScreen(vm: HexrViewModel) {
         // -- the glove ---------------------------------------------------------
         Column(Modifier.weight(1f).fillMaxWidth()) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                SectionLabel("Tap the glove to select", Modifier.weight(1f))
+                SectionLabel("Tap the image to toggle channels", Modifier.weight(1f))
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     ChipButton("All", onClick = vm::selectAll)
                     ChipButton("None", tint = T.TEXT_2, onClick = vm::selectNone)

@@ -128,20 +128,42 @@ class ProtocolTest {
 
     // -- batching -----------------------------------------------------------
 
+    /**
+     * A pressure exit does not stop a vibrating channel.
+     *
+     * Above PWM_VIBRATION_HZ the firmware disables the pressure loop and drives
+     * the motor directly, so a frame that only zeroes a pressure target never
+     * reaches what is running. allOff has to exit both paths or "release all"
+     * leaves a channel buzzing.
+     */
     @Test
-    fun allOffIsSixWalkableFrames() {
+    fun allOffStopsBothOpcodesOnEveryChannel() {
         val data = Protocol.allOff()
-        assertEquals(18 * 6, data.size)
+        assertEquals(18 * 12, data.size)
+
         // The firmware walks concatenated frames using byte 0 as the stride.
         var offset = 0
-        val seen = ArrayList<Int>()
+        val seen = ArrayList<Triple<Int, Int, Int>>()
         while (offset < data.size) {
             val length = u8At(data, offset)
             assertEquals(18, length)
-            seen.add(u8At(data, offset + 8))
+            seen.add(Triple(u8At(data, offset + 1), u8At(data, offset + 8), u8At(data, offset + 10)))
             offset += length
         }
-        assertEquals(Protocol.ALL_FINGERS.map { it.channel }, seen)
+
+        val channels = Protocol.ALL_FINGERS.map { it.channel }
+        val expected =
+            channels.map { Triple(Protocol.Op.SET_VIBRATION, it, Protocol.STATE_EXIT) } +
+                channels.map { Triple(Protocol.Op.SET_PRESSURE, it, Protocol.STATE_EXIT) }
+        assertEquals(expected, seen)
+    }
+
+    /** Order matters: the last word on a channel is a zero pressure target. */
+    @Test
+    fun allOffEndsOnThePressureExit() {
+        val data = Protocol.allOff()
+        assertEquals(Protocol.Op.SET_PRESSURE, u8At(data, data.size - 18 + 1))
+        assertEquals(0.0f, f32At(data, data.size - 18 + 12), 0.0f)
     }
 
     /**
@@ -153,7 +175,7 @@ class ProtocolTest {
     fun splitFramesRoundTripsABatch() {
         val data = Protocol.allOff()
         val parts = Protocol.splitFrames(data)
-        assertEquals(6, parts.size)
+        assertEquals(12, parts.size)
         assertTrue(parts.all { it.size == 18 })
         assertEquals(hex(data), hex(Protocol.batch(parts)))
     }

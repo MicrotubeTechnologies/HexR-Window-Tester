@@ -238,9 +238,28 @@ object Protocol {
         return out
     }
 
-    /** Release every channel. Sent on disconnect, on close, and on demand. */
+    /**
+     * Stop every channel on every path. Sent on disconnect, on close, and on
+     * demand.
+     *
+     * Both opcodes, deliberately. A channel driven with [vibration] is not
+     * stopped by a [pressure] exit: above [PWM_VIBRATION_HZ] the firmware turns
+     * the pressure loop off entirely and drives the channel's motor directly,
+     * so a frame that only sets a pressure target of zero never reaches what is
+     * actually running. Sending only the pressure exit is why a vibrating
+     * channel kept buzzing after "release all".
+     *
+     * The vibration exits go first and the pressure exits last, so the final
+     * word on every channel is a zero target with the loop released.
+     *
+     * Twelve frames, 216 bytes. That still fits one write at the MTU the app
+     * negotiates, and [splitFrames] covers a glove that grants less.
+     */
     fun allOff(fingers: List<Finger> = ALL_FINGERS): ByteArray =
-        batch(fingers.map { pressure(it, false, 0.0, 1.0) })
+        batch(
+            fingers.map { vibration(it, false, 0.0, 0.0) } +
+                fingers.map { pressure(it, false, 0.0, 1.0) },
+        )
 
     /**
      * Walk a batch back into its individual frames, using byte 0 as the stride

@@ -86,8 +86,10 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    override fun onStart() {
-        super.onStart()
+    /** onResume, not onStart: a permission dialog pauses the activity, it does
+     *  not stop it, so onStart never runs on the way back from one. */
+    override fun onResume() {
+        super.onResume()
         vm.permissionsGranted = vm.engine.hasPermissions()
     }
 
