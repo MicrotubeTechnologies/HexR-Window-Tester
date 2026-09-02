@@ -118,7 +118,14 @@ class BleEngine(
      */
     @SuppressLint("MissingPermission")
     fun scan(onResult: (Found) -> Unit, onDone: (String?) -> Unit) {
-        if (scanning) return
+        // Every exit from this function calls onDone, including this one. The
+        // caller flips its own "scanning" flag before calling, so a path that
+        // returns silently strands that flag set — and the Scan button then
+        // reads "Scanning…" and stays disabled for the life of the process.
+        if (scanning) {
+            onDone(null)
+            return
+        }
         bleError = null
 
         if (!hasPermissions()) {
@@ -167,11 +174,11 @@ class BleEngine(
                 return
             }
 
+        // Fires whether or not the scan is still running: if something else
+        // stopped it early, the caller still needs to hear that it is over.
         main.postDelayed({
-            if (scanning) {
-                stopScan()
-                onDone(null)
-            }
+            if (scanCallback === cb) stopScan()
+            onDone(bleError)
         }, SCAN_MILLIS)
     }
 

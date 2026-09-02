@@ -33,6 +33,15 @@ android {
         targetSdk = 35
         versionCode = appVersionCode
         versionName = appVersion
+
+        // The commit this APK came from, shown on the Connect screen. Without
+        // it there is no way to tell two sideloaded builds apart on a phone,
+        // and a bug report against "the app" cannot be pinned to a version.
+        resValue(
+            "string",
+            "build_sha",
+            System.getenv("GITHUB_SHA")?.take(7) ?: "local",
+        )
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

@@ -220,6 +220,10 @@ class HexrViewModel(app: Application) : AndroidViewModel(app) {
         // once it is; a later revocation restarts the process anyway.
         if (!permissionsGranted && engine.hasPermissions()) permissionsGranted = true
         bluetoothOn = engine.bluetoothEnabled()
+        // The engine owns whether a scan is actually running. Mirroring it on
+        // the tick means the two can never disagree for longer than 100 ms,
+        // whatever stops a scan and by whichever path.
+        if (scanning != engine.scanning) scanning = engine.scanning
 
         gloves = HANDS.mapNotNull { hand ->
             val g = state.get(hand) ?: return@mapNotNull null

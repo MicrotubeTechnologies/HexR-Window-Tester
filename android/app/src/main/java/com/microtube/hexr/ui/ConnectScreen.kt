@@ -9,12 +9,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.microtube.hexr.HANDS
 import com.microtube.hexr.HexrViewModel
+import com.microtube.hexr.R
 
 /**
  * Screen 01 — find gloves and connect them.
@@ -212,9 +216,38 @@ fun ConnectScreen(
             }
         }
 
+        BuildLine(vm)
         VSpace(8)
     }
 }
+
+/**
+ * Build identity and the three flags that decide whether a scan can run.
+ *
+ * A QA tool that cannot say which build it is makes every bug report
+ * ambiguous, and the scan gate in particular has several inputs that are
+ * invisible from the outside. Small, muted, at the bottom — read when needed
+ * and ignored otherwise.
+ */
+@Composable
+private fun BuildLine(vm: HexrViewModel) {
+    val ctx = LocalContext.current
+    val version = remember {
+        runCatching {
+            ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName
+        }.getOrNull() ?: "?"
+    }
+    MonoText(
+        "v$version·${stringResource(R.string.build_sha)}   " +
+            "permission ${yn(vm.permissionsGranted)}   " +
+            "bluetooth ${yn(vm.bluetoothOn)}   " +
+            "scanning ${yn(vm.scanning)}",
+        color = T.TEXT_FAINT,
+        size = Size.LABEL,
+    )
+}
+
+private fun yn(b: Boolean) = if (b) "yes" else "no"
 
 /**
  * Below this, a 108-byte six-channel batch does not fit in one write and the
