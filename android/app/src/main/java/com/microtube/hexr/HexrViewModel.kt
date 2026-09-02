@@ -129,12 +129,6 @@ class HexrViewModel(app: Application) : AndroidViewModel(app) {
      */
     var mustUseSettings by mutableStateOf(false)
 
-    /** Everything that has to be true before a scan can find anything. */
-    fun scanBlocker(): String? = when {
-        !permissionsGranted -> "permission"
-        !bluetoothOn -> "bluetooth"
-        else -> null
-    }
 
     // -- test screen settings ------------------------------------------------
 

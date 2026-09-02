@@ -41,6 +41,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -57,9 +58,11 @@ import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.microtube.hexr.ui.Caption
+import com.microtube.hexr.ui.PrimaryButton
 import com.microtube.hexr.ui.ConnectScreen
 import com.microtube.hexr.ui.Dot
 import com.microtube.hexr.ui.HexrTheme
@@ -162,7 +165,22 @@ private fun AppRoot(
         splash = false
     }
 
+    // Ask once, the moment the splash clears. Bluetooth is not a feature of
+    // this app, it is the app — there is nothing to show someone who has not
+    // granted it, so the request comes to them rather than waiting behind a
+    // button they have to find.
+    var asked by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(splash, vm.permissionsGranted, vm.mustUseSettings) {
+        if (!splash && !vm.permissionsGranted && !asked && !vm.mustUseSettings) {
+            asked = true
+            onRequestPermissions()
+        }
+    }
+
     Box(Modifier.fillMaxSize().background(T.SCREEN)) {
+        if (!vm.permissionsGranted) {
+            PermissionGate(vm.mustUseSettings, onRequestPermissions)
+        } else {
         Scaffold(
             containerColor = T.SCREEN,
             topBar = { Header(vm) },
@@ -179,11 +197,12 @@ private fun AppRoot(
         ) { pad ->
             Box(Modifier.padding(pad).fillMaxSize()) {
                 when (tab) {
-                    Tab.Connect -> ConnectScreen(vm, onRequestPermissions, onOpenBluetoothSettings)
+                    Tab.Connect -> ConnectScreen(vm, onOpenBluetoothSettings)
                     Tab.Test -> TestScreen(vm)
                     Tab.Quick -> QuickTestScreen(vm)
                 }
             }
+        }
         }
 
         if (splash) {
@@ -194,6 +213,64 @@ private fun AppRoot(
             )
             Splash(Modifier.alpha(fade))
         }
+    }
+}
+
+/**
+ * The whole app, behind the grant.
+ *
+ * Not a card on the Connect screen. Every screen here drives or reads a glove
+ * over Bluetooth, so a build without the permission has no working surface at
+ * all — showing tabs that cannot do anything only invites someone to conclude
+ * the app is broken. Gating it also removes a class of bug outright: there is
+ * no half-permitted state for the UI to get stuck in.
+ */
+@Composable
+private fun PermissionGate(mustUseSettings: Boolean, onAction: () -> Unit) {
+    Column(
+        Modifier
+            .fillMaxSize()
+            .background(T.SCREEN)
+            .windowInsetsPadding(WindowInsets.statusBars)
+            .padding(horizontal = 32.dp, vertical = 24.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Canvas(Modifier.size(56.dp)) { drawMark(2.8.dp.toPx()) }
+        Spacer(Modifier.height(24.dp))
+        Text(
+            "Bluetooth access needed",
+            color = T.TEXT,
+            fontSize = Size.TITLE.sp,
+            fontWeight = FontWeight.Bold,
+        )
+        Spacer(Modifier.height(10.dp))
+        Text(
+            "HEXR Tester talks to the glove over Bluetooth. Everything in the app — " +
+                "connecting, driving a channel, the quick test — needs permission to find " +
+                "and connect to nearby devices.",
+            color = T.TEXT_2,
+            fontSize = Size.BODY.sp,
+            lineHeight = 20.sp,
+            textAlign = TextAlign.Center,
+        )
+        if (mustUseSettings) {
+            Spacer(Modifier.height(10.dp))
+            Text(
+                "Android will not ask again from inside the app. Open its settings and " +
+                    "allow Nearby devices.",
+                color = T.TEXT_5,
+                fontSize = Size.CAPTION.sp,
+                lineHeight = 18.sp,
+                textAlign = TextAlign.Center,
+            )
+        }
+        Spacer(Modifier.height(28.dp))
+        PrimaryButton(
+            if (mustUseSettings) "Open app settings" else "Allow Bluetooth",
+            Modifier.fillMaxWidth(),
+            onClick = onAction,
+        )
     }
 }
 
