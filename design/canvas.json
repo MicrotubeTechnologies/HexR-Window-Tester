@@ -1,0 +1,31 @@
+{
+  "artboards": [
+    { "file": "Connect.dc.html", "x": 0, "y": 0, "w": 390, "h": 844, "title": "01 · Connect" },
+    { "file": "Main.dc.html", "x": 510, "y": 0, "w": 390, "h": 844, "title": "02 · Test" },
+    { "file": "QuickTest.dc.html", "x": 1020, "y": 0, "w": 390, "h": 844, "title": "03 · Quick test" }
+  ],
+  "annotations": [
+    {
+      "id": "brief",
+      "x": 0,
+      "y": -210,
+      "w": 390,
+      "text": "HEXR Tester for Android — current build, recreated from the Kotlin source.\n\nColours, type sizes, radii and touch targets are lifted from Theme.kt, so what you move here maps back to real values."
+    },
+    {
+      "id": "note-scroll",
+      "x": 510,
+      "y": -210,
+      "w": 390,
+      "text": "The settings area is deliberately clipped — on a 390×844 phone only ~340px is left once the header, the pinned instrument panel and the tabs are placed.\n\nThat squeeze is the main thing worth redesigning."
+    },
+    {
+      "id": "note-tweaks",
+      "x": 1020,
+      "y": -210,
+      "w": 390,
+      "text": "Two levers above each frame: Accent recolours every accent surface at once, and State flips Test between idle and driving, or Quick test between passed / failed / pump."
+    }
+  ],
+  "launch": { "view": "canvas" }
+}

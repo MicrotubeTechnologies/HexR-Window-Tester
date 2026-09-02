@@ -1,0 +1,208 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; }
+    a { color: #F26B21; } a:hover { color: #FF8442; }
+    .hx { font-family: Roboto, "Helvetica Neue", system-ui, sans-serif; }
+    .mono { font-family: "Roboto Mono", ui-monospace, "DejaVu Sans Mono", monospace; }
+    .lbl { font-size: 11px; font-weight: 600; letter-spacing: 1.1px; color: #6E747C; text-transform: uppercase; }
+  </style>
+</helmet>
+
+<div class="hx" style="width: 390px; height: 844px; background: #111214; display: flex; flex-direction: column; overflow: hidden;">
+
+  <!-- header. The empty band is where the system status bar paints. -->
+  <div style="background: #17191C; flex-shrink: 0;">
+    <div style="height: 44px;"></div>
+    <div style="height: 3px; background: {{stripColor}};"></div>
+    <div style="display: flex; align-items: center; gap: 12px; padding: 11px 16px;">
+      <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 3px;">
+        <div style="color: #E9EAEC; font-size: 16px; font-weight: 600;">HEXR Tester</div>
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <div style="width: 7px; height: 7px; border-radius: 50%; background: {{dotColor}};"></div>
+          <div style="color: {{statusColor}}; font-size: 11.5px; font-weight: {{statusWeight}};">{{statusText}}</div>
+        </div>
+      </div>
+      <div style="background: #1C1F23; border-radius: 12px; padding: 11px 16px; color: #E5484D; font-size: 13px; font-weight: 700;">All off</div>
+    </div>
+  </div>
+
+  <!-- settings. Scrolls behind the pinned panel; clipped here as it is on device. -->
+  <div style="flex-grow: 1; overflow: hidden; padding: 16px 16px 0; display: flex; flex-direction: column;">
+
+    <div class="lbl">Hand</div>
+    <div style="display: flex; gap: 8px; margin-top: 8px;">
+      <div style="flex-grow: 1; flex-basis: 0; min-height: 52px; display: flex; flex-direction: column; justify-content: center; background: {{accentFill}}; border: 1.5px solid {{accent}}; border-radius: 10px; padding: 10px 12px;">
+        <div style="color: {{accent}}; font-size: 14.5px; font-weight: 600;">Left</div>
+        <div style="color: #868C94; font-size: 11.5px;">connected</div>
+      </div>
+      <div style="flex-grow: 1; flex-basis: 0; min-height: 52px; display: flex; flex-direction: column; justify-content: center; background: #111214; border: 1px solid #23262B; border-radius: 10px; padding: 10px 12px;">
+        <div style="color: #5C626A; font-size: 14.5px; font-weight: 500;">Right</div>
+        <div style="color: #5C626A; font-size: 11.5px;">not connected</div>
+      </div>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 8px; margin-top: 18px;">
+      <div class="lbl" style="flex-grow: 1;">Channels</div>
+      <div style="background: #1C1F23; border: 1px solid #2A2E34; border-radius: 12px; padding: 8px 12px; color: #E9EAEC; font-size: 13px; font-weight: 600;">All</div>
+      <div style="background: #1C1F23; border: 1px solid #2A2E34; border-radius: 12px; padding: 8px 12px; color: #B7BCC3; font-size: 13px; font-weight: 600;">None</div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 8px;">
+      <sc-for list="{{channels}}" as="ch" hint-placeholder-count="6">
+        <div style="min-height: 52px; display: flex; flex-direction: column; justify-content: center; background: {{ch.fill}}; border: {{ch.border}}; border-radius: 10px; padding: 10px 12px;">
+          <div style="color: {{ch.fg}}; font-size: 14.5px; font-weight: {{ch.weight}};">{{ch.name}}</div>
+        </div>
+      </sc-for>
+    </div>
+
+    <div class="lbl" style="margin-top: 18px;">Mode</div>
+    <div style="display: flex; gap: 8px; margin-top: 8px;">
+      <div style="flex-grow: 1; flex-basis: 0; min-height: 52px; display: flex; flex-direction: column; justify-content: center; background: {{accentFill}}; border: 1.5px solid {{accent}}; border-radius: 10px; padding: 10px 12px;">
+        <div style="color: {{accent}}; font-size: 14.5px; font-weight: 600;">Pressure</div>
+        <div style="color: #868C94; font-size: 11.5px;">steady squeeze</div>
+      </div>
+      <div style="flex-grow: 1; flex-basis: 0; min-height: 52px; display: flex; flex-direction: column; justify-content: center; background: #1C1F23; border: 1px solid #2A2E34; border-radius: 10px; padding: 10px 12px;">
+        <div style="color: #E9EAEC; font-size: 14.5px; font-weight: 500;">Vibration</div>
+        <div style="color: #868C94; font-size: 11.5px;">oscillating</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- pinned instrument panel: the manifold and the drive control -->
+  <div style="background: #17191C; flex-shrink: 0; padding: 14px 16px;">
+    <div style="display: flex; align-items: baseline; gap: 8px;">
+      <div class="lbl" style="flex-grow: 1;">Left glove &middot; live</div>
+      <div class="mono" style="color: #6E747C; font-size: 11.5px;">kPa</div>
+    </div>
+
+    <div style="display: flex; gap: 6px; margin-top: 10px;">
+      <sc-for list="{{manifold}}" as="m" hint-placeholder-count="6">
+        <div style="flex-grow: 1; flex-basis: 0; display: flex; flex-direction: column; align-items: center;">
+          <div class="mono" style="color: {{m.valueColor}}; font-size: 11.5px; font-weight: 500;">{{m.value}}</div>
+          <div style="width: 100%; height: 76px; margin-top: 4px; background: #131417; border: 1px solid {{m.edge}}; border-radius: 4px; display: flex; flex-direction: column; justify-content: flex-end; overflow: hidden;">
+            <div style="width: 100%; height: {{m.height}}; background: {{m.fillColor}}; border-radius: 4px;"></div>
+          </div>
+          <div style="margin-top: 5px; color: {{m.labelColor}}; font-size: 11.5px; font-weight: {{m.weight}};">{{m.short}}</div>
+        </div>
+      </sc-for>
+    </div>
+
+    <div style="display: flex; gap: 0; margin-top: 14px; background: #131417; border: 1px solid #23262B; border-radius: 12px; padding: 3px;">
+      <div style="flex-grow: 1; flex-basis: 0; text-align: center; background: #1C1F23; border-radius: 6px; padding: 9px 0; color: #E9EAEC; font-size: 13px; font-weight: 600;">Hold to drive</div>
+      <div style="flex-grow: 1; flex-basis: 0; text-align: center; padding: 9px 0; color: #868C94; font-size: 13px;">Latch on</div>
+    </div>
+
+    <div style="margin-top: 10px; background: {{padFill}}; border: 2px solid {{padEdge}}; border-radius: 12px; padding: 18px 0; display: flex; flex-direction: column; align-items: center; gap: 3px;">
+      <div style="color: {{padText}}; font-size: 17px; font-weight: 700; letter-spacing: 0.3px;">{{padTitle}}</div>
+      <div style="color: {{padSub}}; font-size: 11.5px;">3 channels &middot; left &middot; 38 kPa</div>
+    </div>
+  </div>
+
+  <!-- tabs -->
+  <div style="background: #131417; flex-shrink: 0; border-top: 1px solid #23262B;">
+    <div style="display: flex; padding: 6px 0 22px;">
+      <div style="flex-grow: 1; flex-basis: 0; display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 8px 0;">
+        <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+          <path d="M20.2 11 L15.6 18.97 L6.4 18.97 L1.8 11 L6.4 3.03 L15.6 3.03 Z" stroke="#868C94" stroke-width="2.4" stroke-linejoin="round"/>
+          <circle cx="11" cy="11" r="2.9" fill="#868C94"/>
+        </svg>
+        <div style="color: #868C94; font-size: 11.5px;">Connect</div>
+      </div>
+      <div style="flex-grow: 1; flex-basis: 0; display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 8px 0;">
+        <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+          <path d="M1.8 15.8 C6.4 15.8 6.4 5.7 11 5.7 C15.6 5.7 15.6 15.8 20.2 15.8" stroke="{{accent}}" stroke-width="2.4" stroke-linecap="round"/>
+        </svg>
+        <div style="color: {{accent}}; font-size: 11.5px; font-weight: 600;">Test</div>
+      </div>
+      <div style="flex-grow: 1; flex-basis: 0; display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 8px 0;">
+        <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+          <g stroke="#868C94" stroke-width="3.5" stroke-linecap="round">
+            <path d="M4.4 18.9 V12.3"/>
+            <path d="M11 18.9 V6.5"/>
+            <path d="M17.6 18.9 V9.7"/>
+          </g>
+        </svg>
+        <div style="color: #868C94; font-size: 11.5px;">Quick test</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{
+  "accent": {"editor": "color", "default": "#F26B21", "options": ["#F26B21", "#3ECF8E", "#5B8DEF", "#E5484D"], "section": "Theme"},
+  "driving": {"editor": "boolean", "default": false, "section": "State"},
+  "$preview": {"width": 390, "height": 844}
+}'>
+class Component extends DCLogic {
+  // Blend a hex toward the #111214 body colour. The selected-cell fill and its
+  // border are the accent at two depths, so they have to follow it when the
+  // accent tweak changes rather than staying at their literal values.
+  mix(hex, t) {
+    const bg = [0x11, 0x12, 0x14];
+    const c = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+    const out = c.map((v, i) => Math.round(bg[i] + (v - bg[i]) * t));
+    return '#' + out.map((v) => v.toString(16).padStart(2, '0')).join('');
+  }
+
+  renderVals() {
+    const accent = this.props.accent ?? '#F26B21';
+    const driving = this.props.driving ?? false;
+    const accentFill = this.mix(accent, 0.12);
+    const accentEdge = this.mix(accent, 0.45);
+
+    // Thumb, Index and Ring selected — a realistic partial selection, so the
+    // gauge shows both states side by side.
+    const picked = [0, 1, 3];
+    const names = ['Thumb', 'Index', 'Middle', 'Ring', 'Pinky', 'Palm'];
+    const shorts = ['Th', 'In', 'Mi', 'Ri', 'Pi', 'Pa'];
+    const live = driving ? [38.4, 41.2, 0.6, 37.9, 0.4, 0.5] : [0.5, 0.4, 0.6, 0.3, 0.4, 0.5];
+
+    return {
+      accent,
+      accentFill,
+      accentEdge,
+      stripColor: driving ? accent : '#17191C',
+      dotColor: '#3ECF8E',
+      statusText: driving ? 'driving' : 'left connected',
+      statusColor: driving ? accent : '#868C94',
+      statusWeight: driving ? '600' : '400',
+      padFill: driving ? accent : accentFill,
+      padEdge: driving ? accent : accentEdge,
+      padText: driving ? '#0A0B0C' : accent,
+      padSub: driving ? 'rgba(10,11,12,0.75)' : '#868C94',
+      padTitle: driving ? 'Driving' : 'Hold to drive',
+      channels: names.map((name, i) => ({
+        name,
+        fill: picked.includes(i) ? accentFill : '#1C1F23',
+        border: picked.includes(i) ? '1.5px solid ' + accent : '1px solid #2A2E34',
+        fg: picked.includes(i) ? accent : '#E9EAEC',
+        weight: picked.includes(i) ? '600' : '500',
+      })),
+      manifold: shorts.map((short, i) => ({
+        short,
+        value: live[i].toFixed(0),
+        // Scaled to the firmware ceiling, not to the highest value seen, so a
+        // weak channel looks weak instead of being normalised into looking fine.
+        height: Math.round((live[i] / 60) * 100) + '%',
+        fillColor: picked.includes(i) ? accent : '#3A4048',
+        edge: picked.includes(i) ? accentEdge : '#23262B',
+        valueColor: picked.includes(i) ? '#E9EAEC' : '#868C94',
+        labelColor: picked.includes(i) ? accent : '#6E747C',
+        weight: picked.includes(i) ? '600' : '400',
+      })),
+    };
+  }
+}
+</script>
+</body>
+</html>

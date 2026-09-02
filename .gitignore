@@ -17,3 +17,7 @@ android/app/build/
 android/local.properties
 android/out/
 *.apk
+
+# Design canvas: the .dc.html artboards are the source; the seeded page is a
+# ~2 MB build output that is regenerated from them.
+design/hexr-tester-android.html

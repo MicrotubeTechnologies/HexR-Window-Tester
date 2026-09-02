@@ -15,6 +15,17 @@ import kotlinx.coroutines.launch
 private const val TICK_MS = 100L
 
 /**
+ * The frequency slider's ceiling.
+ *
+ * The protocol accepts up to 40 Hz, but the design caps the control at 20:
+ * above that the channel is a buzz rather than a distinguishable pulse, and the
+ * extra travel costs precision across the range people actually use.
+ */
+const val MAX_FREQUENCY_HZ = 20
+
+private fun other(hand: String) = if (hand == LEFT) RIGHT else LEFT
+
+/**
  * The canned QA sweep, ported from `hexr/screens/quicktest.py`.
  *
  * The thresholds here must match the desktop tester's, or the same glove passes
@@ -105,22 +116,26 @@ class HexrViewModel(app: Application) : AndroidViewModel(app) {
     // -- test screen settings ------------------------------------------------
 
     var channels by mutableStateOf(setOf(Protocol.Finger.Index.channel))
-    var mode by mutableStateOf("pressure")          // "pressure" | "vibration"
-    var intensity by mutableStateOf(0.6)
-    var speed by mutableStateOf(1.0)
-    var frequency by mutableStateOf(10.0)
-    var peakRatio by mutableStateOf(0.5)
-    var hands by mutableStateOf(setOf(LEFT, RIGHT))
+
+    /** 0-100. Maps onto the protocol's 0.1-1.0 window; exactly 0 means off. */
+    var intensity by mutableStateOf(60)
 
     /**
-     * "hold" drives only while the pad is held; "latch" toggles on a tap.
+     * 0-20 Hz, where **0 means steady pressure, not silence**.
      *
-     * Hold is the default because releasing is then the same motion as
-     * finishing, and a phone that is dropped or backgrounded vents on its own.
-     * Latch exists for the case hold cannot serve: putting the phone down to
-     * feel a channel with both hands.
+     * This replaced a separate Pressure/Vibration mode picker, and it is a
+     * better fit for the hardware than the picker was: the firmware's own
+     * distinction is a frequency of zero versus a frequency above it, so the
+     * one control now says the same thing the wire does.
      */
-    var driveMode by mutableStateOf("hold")     // "hold" | "latch"
+    var frequency by mutableStateOf(0)
+
+    /** What the frequency toggle restores when switched back on. */
+    private var lastFrequency = 6
+
+    /** Which glove the Test tab drives. One at a time, as the diagram shows one. */
+    var hand by mutableStateOf(LEFT)
+
     var driving by mutableStateOf(false)
         private set
 
@@ -171,7 +186,10 @@ class HexrViewModel(app: Application) : AndroidViewModel(app) {
             )
         }.toMap()
 
-        if (driving && !hands.any { gloves[it]?.connected == true }) driving = false
+        // A glove that goes away mid-drive must clear the flag, or the button
+        // keeps claiming to drive something that is no longer there.
+        if (driving && !handConnected()) driving = false
+        if (!handConnected() && handConnected(other(hand))) hand = other(hand)
 
         // Keep the quick test's hand pointed at something real.
         val chosen = qtHand
@@ -235,42 +253,92 @@ class HexrViewModel(app: Application) : AndroidViewModel(app) {
 
     fun activeFingers(): List<Protocol.Finger> = channels.sorted().map { Protocol.Finger.of(it) }
 
+    /**
+     * Frequency decides the opcode, not a mode flag: zero is a steady pressure
+     * target, anything above it is the vibration path.
+     */
     private fun frames(on: Boolean): ByteArray {
-        val fingers = activeFingers()
-        return if (mode == "vibration") {
-            Protocol.batch(fingers.map { Protocol.vibration(it, on, frequency, intensity, peakRatio) })
-        } else {
-            Protocol.batch(fingers.map { Protocol.pressure(it, on, intensity, speed) })
-        }
+        val level = intensity / 100.0
+        return Protocol.batch(
+            activeFingers().map { f ->
+                if (frequency > 0) {
+                    Protocol.vibration(f, on, frequency.toDouble(), level)
+                } else {
+                    Protocol.pressure(f, on, level, 1.0)
+                }
+            },
+        )
     }
 
-    fun startDrive() {
+    fun toggleChannel(channel: Int) {
+        channels = if (channel in channels) channels - channel else channels + channel
+        // Deselecting the last channel leaves nothing to drive, so the drive
+        // must end with it rather than silently continuing on stale channels.
+        if (channels.isEmpty() && driving) release()
+        if (driving) engine.send(hand, frames(true))
+    }
+
+    fun selectAll() {
+        channels = Protocol.ALL_FINGERS.map { it.channel }.toSet()
+        if (driving) engine.send(hand, frames(true))
+    }
+
+    fun selectNone() {
+        channels = emptySet()
+        if (driving) release()
+    }
+
+    fun pickHand(which: String) {
+        if (which == hand) return
+        // Never leave the hand you are walking away from inflated.
+        if (driving) release()
+        hand = which
+    }
+
+    fun handConnected(which: String = hand): Boolean = gloves[which]?.connected == true
+
+    fun canDrive(): Boolean = channels.isNotEmpty() && handConnected()
+
+    fun setFrequency(hz: Int) {
+        frequency = hz.coerceIn(0, MAX_FREQUENCY_HZ)
+        if (frequency > 0) lastFrequency = frequency
+        if (driving) engine.send(hand, frames(true))
+    }
+
+    fun toggleFrequency() {
+        if (frequency == 0) setFrequency(lastFrequency) else setFrequency(0)
+    }
+
+    fun setIntensity(pct: Int) {
+        intensity = pct.coerceIn(0, 100)
+        if (driving) engine.send(hand, frames(true))
+    }
+
+    /** Start output on the selected channels of the selected glove. */
+    fun trigger() {
         if (!canDrive()) return
         driving = true
-        engine.sendHands(connectedAmong(hands), frames(true))
+        engine.send(hand, frames(true))
     }
 
-    fun stopDrive() {
-        if (!driving) return
+    /**
+     * Stop output, whatever is selected.
+     *
+     * Deliberately unconditional and deliberately every channel: a channel
+     * deselected mid-drive is still inflated, and a targeted release would
+     * leave it that way.
+     */
+    fun release() {
         driving = false
-        // Vent every channel, not just the selected ones. If someone changed
-        // the selection mid-drive, the channel they deselected is still
-        // inflated and a targeted release would leave it that way.
-        engine.sendHands(connectedAmong(hands), Protocol.allOff())
+        engine.sendAllOff()
     }
 
-    fun canDrive(): Boolean =
-        channels.isNotEmpty() && hands.any { gloves[it]?.connected == true }
-
-    /** Vent everything, everywhere. Wired to the always-visible top-bar button. */
+    /** Vent everything, everywhere. */
     fun allOff() {
         if (qtPhase == "settle" || qtPhase == "drive") abortQuickTest("Stopped")
         driving = false
         engine.sendAllOff()
     }
-
-    private fun connectedAmong(wanted: Set<String>): List<String> =
-        wanted.filter { gloves[it]?.connected == true }
 
     /**
      * Vent on the way to the background.

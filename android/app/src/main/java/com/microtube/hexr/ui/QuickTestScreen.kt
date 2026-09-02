@@ -13,7 +13,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -21,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import com.microtube.hexr.HANDS
 import com.microtube.hexr.HexrViewModel
 import com.microtube.hexr.QuickTest
+import com.microtube.hexr.Tone
 
 /**
  * Screen 03 — the canned QA sweep.
@@ -29,19 +29,18 @@ import com.microtube.hexr.QuickTest
  * and how fast, then judges it. Screen 02 is for exploring; this is for
  * deciding.
  *
- * Someone opens this screen to learn one thing, so the answer is stated once
- * and large before the per-channel detail. Making them derive "did it pass"
- * from six table rows is making them do the summarising themselves.
- *
- * The verdict thresholds live in [QuickTest] and match the desktop tester's, so
- * a result recorded on a phone means the same as one recorded on a bench laptop.
+ * The verdict set is the desktop tester's, not the design mock's simplified
+ * pass/fail: those five names carry real diagnostic meaning — an indenter that
+ * barely moved and a channel getting no air at all send someone to different
+ * parts of the glove — and a result recorded on a phone has to mean the same as
+ * one recorded on a bench laptop.
  */
 
 private fun verdictColour(verdict: String?): Color = when (verdict) {
-    "Pass", "Good" -> T.SUCCESS
-    "Weak" -> T.ACCENT
-    "Indenter failed", "Pump failed" -> T.DANGER
-    else -> T.TEXT_2
+    "Pass", "Good" -> T.GREEN
+    "Weak" -> T.AMBER
+    "Indenter failed", "Pump failed" -> T.RED
+    else -> T.TEXT_4
 }
 
 @Composable
@@ -55,82 +54,88 @@ fun QuickTestScreen(vm: HexrViewModel) {
             .fillMaxWidth()
             .verticalScroll(rememberScrollState())
             .padding(T.PAGE_PAD),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Heading("Quick test")
-        Caption(
-            "Drives every channel to full for two seconds and reports what each one " +
-                "reached. Take the glove off first.",
-            Modifier.padding(top = 5.dp),
-            T.TEXT_MUTED,
-        )
-        VSpace(18)
+        Column {
+            Title("Quick test")
+            Caption(
+                "Drives every channel to full for two seconds and reports what each one " +
+                    "reached. Take the glove off first.",
+                Modifier.padding(top = 5.dp),
+                T.TEXT_2,
+            )
+        }
 
-        SectionLabel("Glove to test")
-        VSpace(8)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            HANDS.forEach { hand ->
-                val g = vm.gloves[hand]
-                val live = g?.connected == true
-                Cell(
-                    label = hand,
-                    sub = if (live) "connected" else "not connected",
-                    selected = live && vm.qtHand == hand,
-                    enabled = live && !running,
-                    modifier = Modifier.weight(1f),
-                    onClick = { vm.qtHand = hand },
-                )
+        Column {
+            SectionLabel("Glove to test")
+            VSpace(8)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                HANDS.forEach { hand ->
+                    val g = vm.gloves[hand]
+                    val live = g?.connected == true
+                    HandCard(
+                        hand = hand,
+                        sub = if (live) "connected" else "not connected",
+                        selected = live && vm.qtHand == hand,
+                        enabled = live && !running,
+                        modifier = Modifier.weight(1f),
+                        onClick = { vm.qtHand = hand },
+                    )
+                }
             }
         }
-        VSpace(18)
+
+        if (running) {
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp)) {
+                    Label(
+                        vm.qtStatus.ifEmpty { "Driving all channels…" },
+                        color = T.ACCENT,
+                        weight = FontWeight.SemiBold,
+                    )
+                    VSpace(12)
+                    ProgressBar(vm.qtProgress)
+                    VSpace(10)
+                    Caption("Every channel is at full pressure. Keep the glove off your hand.")
+                }
+            }
+        }
 
         // The answer, before the evidence.
         if (done) {
             VerdictBanner(
                 headline = vm.qtStatus,
                 detail = vm.qtSummary,
-                tone = vm.qtStatusTone,
+                ok = vm.qtStatusTone == Tone.Success,
             )
-            VSpace(16)
         }
 
         PrimaryButton(
-            if (running) "Stop" else if (done) "Run again" else "Run quick test",
+            when {
+                running -> "Stop"
+                done -> "Run again"
+                else -> "Run quick test"
+            },
             Modifier.fillMaxWidth(),
+            active = running,
             onClick = vm::toggleQuickTest,
         )
-        if (running || (!done && vm.qtStatus.isNotEmpty())) {
-            VSpace(12)
+        if (!running && !done && vm.qtStatus.isNotEmpty()) {
             Caption(vm.qtStatus, color = vm.qtStatusTone.color())
         }
-        VSpace(12)
-        ProgressBar(
-            fraction = vm.qtProgress,
-            color = when (vm.qtPhase) {
-                "settle" -> T.TEXT_FAINT
-                "drive" -> T.ACCENT
-                "done" -> T.SUCCESS
-                else -> T.RAIL
-            },
-        )
-        VSpace(18)
 
-        Panel(Modifier.fillMaxWidth()) {
+        Card(Modifier.fillMaxWidth()) {
             Column {
-                TableRow {
-                    SectionLabel("Channel", Modifier.weight(1f))
-                    SectionLabel("Peak", Modifier.width(74.dp))
-                }
-                Divider()
                 vm.qtRows.forEachIndexed { i, row ->
                     TableRow {
                         Column(Modifier.weight(1f)) {
-                            Label(row.label, color = T.TEXT, weight = FontWeight.Medium)
+                            Label(row.label, size = Size.BODY, weight = FontWeight.SemiBold)
                             if (row.verdict != null) {
                                 Label(
                                     row.verdict +
                                         (row.timeToPeak?.let { " · %.2f s".format(it) } ?: ""),
                                     color = verdictColour(row.verdict),
-                                    size = Size.MICRO,
+                                    size = Size.LABEL,
                                     weight = FontWeight.SemiBold,
                                     modifier = Modifier.padding(top = 2.dp),
                                 )
@@ -138,43 +143,43 @@ fun QuickTestScreen(vm: HexrViewModel) {
                         }
                         MonoText(
                             row.peak?.let { "%.1f".format(it) } ?: "—",
-                            Modifier.width(74.dp),
-                            if (row.peak == null) T.TEXT_OFF else T.TEXT,
-                            size = Size.READING.toFloat(),
-                            weight = FontWeight.Medium,
+                            Modifier.width(56.dp),
+                            if (row.peak == null) T.TEXT_FAINT else verdictColour(row.verdict),
+                            size = Size.BODY,
+                            weight = FontWeight.Bold,
                         )
                     }
-                    if (i < vm.qtRows.lastIndex) Divider()
+                    if (i < vm.qtRows.lastIndex) Hairline()
                 }
             }
         }
 
-        VSpace(8)
         Disclosure(
             title = "What the verdicts mean",
             expanded = legendOpen,
             onToggle = { legendOpen = !legendOpen },
         ) {
-            Panel(Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(vertical = 2.dp)) {
+            Card(Modifier.fillMaxWidth()) {
+                Column {
                     listOf(
                         "Pass" to "above ${QuickTest.PASS_KPA.toInt()} kPa · full strength",
                         "Good" to "${QuickTest.GOOD_KPA.toInt()}–${QuickTest.PASS_KPA.toInt()} kPa · within tolerance",
                         "Weak" to "${QuickTest.WEAK_KPA.toInt()}–${QuickTest.GOOD_KPA.toInt()} kPa · never got to full",
                         "Indenter failed" to "under ${QuickTest.WEAK_KPA.toInt()} kPa · barely moved",
                         "Pump failed" to "nothing at all · that channel is getting no air",
-                    ).forEach { (verdict, meaning) ->
+                    ).forEachIndexed { i, (verdict, meaning) ->
                         TableRow {
                             Column {
                                 Label(
                                     verdict,
                                     color = verdictColour(verdict),
-                                    size = Size.CAPTION.toFloat(),
+                                    size = Size.CAPTION,
                                     weight = FontWeight.SemiBold,
                                 )
-                                Caption(meaning, Modifier.padding(top = 1.dp))
+                                Caption(meaning, Modifier.padding(top = 1.dp), size = Size.LABEL)
                             }
                         }
+                        if (i < 4) Hairline()
                     }
                 }
             }
@@ -186,6 +191,7 @@ fun QuickTestScreen(vm: HexrViewModel) {
                     "and not six.",
             )
         }
-        VSpace(24)
+
+        VSpace(8)
     }
 }

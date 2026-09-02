@@ -6,10 +6,17 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
-import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -27,24 +34,29 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.microtube.hexr.ui.Caption
 import com.microtube.hexr.ui.ConnectScreen
 import com.microtube.hexr.ui.Dot
 import com.microtube.hexr.ui.HexrTheme
@@ -52,6 +64,7 @@ import com.microtube.hexr.ui.QuickTestScreen
 import com.microtube.hexr.ui.Size
 import com.microtube.hexr.ui.T
 import com.microtube.hexr.ui.TestScreen
+import kotlinx.coroutines.delay
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -100,128 +113,230 @@ private enum class Tab(val label: String) {
 @Composable
 private fun AppRoot(vm: HexrViewModel, onRequestPermissions: () -> Unit) {
     var tab by remember { mutableStateOf(Tab.Connect) }
-    val anyConnected = vm.gloves.values.any { it.connected }
+    var splash by remember { mutableStateOf(true) }
+    var splashFading by remember { mutableStateOf(false) }
 
-    Scaffold(
-        containerColor = T.SURFACE,
-        topBar = { TopBar(vm, anyConnected) },
-        bottomBar = { BottomBar(tab) { tab = it } },
-    ) { pad ->
-        Box(Modifier.padding(pad).fillMaxSize()) {
-            when (tab) {
-                Tab.Connect -> ConnectScreen(vm, onRequestPermissions)
-                Tab.Test -> TestScreen(vm)
-                Tab.Quick -> QuickTestScreen(vm)
+    LaunchedEffect(Unit) {
+        delay(1600)
+        splashFading = true
+        delay(400)
+        splash = false
+    }
+
+    Box(Modifier.fillMaxSize().background(T.SCREEN)) {
+        Scaffold(
+            containerColor = T.SCREEN,
+            topBar = { Header(vm) },
+            bottomBar = {
+                BottomBar(tab) { picked ->
+                    // Leaving the Test tab is leaving the only screen with a
+                    // Release all on it, so the drive ends with the tab. The
+                    // alternative is output running behind a screen that cannot
+                    // stop it.
+                    if (picked != Tab.Test && vm.driving) vm.release()
+                    tab = picked
+                }
+            },
+        ) { pad ->
+            Box(Modifier.padding(pad).fillMaxSize()) {
+                when (tab) {
+                    Tab.Connect -> ConnectScreen(vm, onRequestPermissions)
+                    Tab.Test -> TestScreen(vm)
+                    Tab.Quick -> QuickTestScreen(vm)
+                }
             }
         }
+
+        if (splash) {
+            val fade by animateFloatAsState(
+                if (splashFading) 0f else 1f,
+                tween(400),
+                label = "splashFade",
+            )
+            Splash(Modifier.alpha(fade))
+        }
+    }
+}
+
+// -- splash ---------------------------------------------------------------------
+
+@Composable
+private fun Splash(modifier: Modifier = Modifier) {
+    val t = rememberInfiniteTransition(label = "splash")
+    val spin by t.animateFloat(
+        0f, 360f,
+        infiniteRepeatable(tween(2600, easing = LinearEasing), RepeatMode.Restart),
+        label = "spin",
+    )
+    val pulse by t.animateFloat(
+        0.94f, 1.06f,
+        infiniteRepeatable(tween(900), RepeatMode.Reverse),
+        label = "pulse",
+    )
+
+    Column(
+        modifier.fillMaxSize().background(T.SCREEN),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box(Modifier.size(88.dp), contentAlignment = Alignment.Center) {
+            // A broken ring turning behind the mark: the dash is what makes the
+            // rotation legible on a shape that is otherwise symmetric.
+            Canvas(Modifier.size(88.dp).rotate(spin)) {
+                drawPath(
+                    hexagonPath(size.width / 2f, size.height / 2f, size.width * 0.455f),
+                    T.ACCENT,
+                    style = Stroke(
+                        width = 2.dp.toPx(),
+                        join = StrokeJoin.Round,
+                        pathEffect = PathEffect.dashPathEffect(
+                            floatArrayOf(60f * density / 3f, 200f * density / 3f),
+                        ),
+                    ),
+                )
+            }
+            Canvas(Modifier.size(60.dp).scale(pulse)) { drawMark(3.dp.toPx()) }
+        }
+
+        Spacer(Modifier.height(22.dp))
+        Text(
+            "HEXR",
+            color = T.TEXT,
+            fontSize = 26.sp,
+            fontWeight = FontWeight.ExtraBold,
+            letterSpacing = 1.6.sp,
+        )
+        Spacer(Modifier.height(6.dp))
+        Text(
+            "BY MICROTUBE TECHNOLOGIES",
+            color = T.TEXT_3,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
+            letterSpacing = 1.5.sp,
+        )
+    }
+}
+
+// -- header ---------------------------------------------------------------------
+
+/**
+ * The lockup: mark, wordmark, product tag, connection state.
+ *
+ * There is no All off here. Release all on the Test tab is the one stop, and
+ * two buttons that both mean stop is one more thing to reason about in the
+ * moment you least want to.
+ */
+@Composable
+private fun Header(vm: HexrViewModel) {
+    val connected = HANDS.filter { vm.gloves[it]?.connected == true }
+    Column(Modifier.fillMaxWidth().background(T.SCREEN)) {
+        Box(Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.statusBars))
+        Row(
+            Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(9.dp),
+        ) {
+            Canvas(Modifier.size(22.dp)) { drawMark(1.65.dp.toPx()) }
+            Text(
+                "HEXR",
+                color = T.TEXT,
+                fontSize = Size.WORDMARK.sp,
+                fontWeight = FontWeight.ExtraBold,
+                letterSpacing = 0.5.sp,
+            )
+            Box(
+                Modifier
+                    .clip(RoundedCornerShape(5.dp))
+                    .background(T.CARD)
+                    .padding(horizontal = 6.dp, vertical = 3.dp),
+            ) {
+                Text(
+                    "TESTER",
+                    color = T.TEXT_3,
+                    fontSize = Size.TAG.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.9.sp,
+                )
+            }
+            Row(
+                Modifier.padding(start = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(5.dp),
+            ) {
+                Dot(if (connected.isEmpty()) T.TEXT_FAINT else T.GREEN)
+                Caption(
+                    when {
+                        vm.driving -> "driving"
+                        connected.isEmpty() -> "no glove"
+                        else -> connected.joinToString(" + ") { it.lowercase() }
+                    },
+                    color = if (vm.driving) T.ACCENT else T.TEXT_2,
+                    size = Size.MICRO,
+                )
+            }
+        }
+        Box(Modifier.fillMaxWidth().height(1.dp).background(T.BORDER_SOFT))
     }
 }
 
 /**
- * Connection state on the left, All off on the right.
- *
- * The strip turns accent while anything is being driven, so the app's live state
- * is legible from the header no matter which tab is showing — including from the
- * quick-test screen, where the two-second drive is otherwise invisible if you
- * are looking at the glove rather than the phone.
+ * The HEXR mark: a hexagon outline with a smaller filled hexagon at its centre
+ * — the channel dot, which is what the glove is actually made of.
  */
-@Composable
-private fun TopBar(vm: HexrViewModel, anyConnected: Boolean) {
-    val live = vm.driving || vm.qtPhase == "drive"
-    val haptics = LocalHapticFeedback.current
-    val strip by animateColorAsState(if (live) T.ACCENT else T.RAISED, label = "strip")
-
-    Column(Modifier.fillMaxWidth().background(T.RAISED)) {
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .windowInsetsPadding(WindowInsets.statusBars)
-                .height(0.dp),
-        )
-        Box(Modifier.fillMaxWidth().height(3.dp).background(strip))
-        Row(
-            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 11.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(Modifier.weight(1f)) {
-                Text(
-                    "HEXR Tester",
-                    color = T.TEXT,
-                    fontSize = Size.SUBTITLE.sp,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    val connected = HANDS.filter { vm.gloves[it]?.connected == true }
-                    Dot(if (connected.isEmpty()) T.DOT_OFF else T.SUCCESS, size = 7)
-                    Spacer(Modifier.size(6.dp))
-                    Text(
-                        when {
-                            live -> "driving"
-                            connected.isEmpty() -> "no glove connected"
-                            else -> connected.joinToString(" + ") { it.lowercase() } + " connected"
-                        },
-                        color = if (live) T.ACCENT else T.TEXT_MUTED,
-                        fontSize = Size.MICRO.sp,
-                        fontWeight = if (live) FontWeight.SemiBold else FontWeight.Normal,
-                    )
-                }
-            }
-            Box(
-                Modifier
-                    .clip(RoundedCornerShape(T.R_CTRL))
-                    .background(if (anyConnected) T.INSET else Color.Transparent)
-                    .clickable(enabled = anyConnected) {
-                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                        vm.allOff()
-                    }
-                    .padding(horizontal = 16.dp, vertical = 11.dp),
-            ) {
-                Text(
-                    "All off",
-                    color = if (anyConnected) T.DANGER else T.TEXT_OFF,
-                    fontSize = Size.CAPTION.sp,
-                    fontWeight = FontWeight.Bold,
-                )
-            }
-        }
-    }
+private fun DrawScope.drawMark(strokeWidth: Float) {
+    val cx = size.width / 2f
+    val cy = size.height / 2f
+    drawPath(
+        hexagonPath(cx, cy, size.width * 0.4583f),   // 55/60 of the half-width
+        T.ACCENT,
+        style = Stroke(width = strokeWidth, join = StrokeJoin.Round),
+    )
+    drawPath(hexagonPath(cx, cy, size.width * 0.1833f), T.ACCENT)
 }
+
+/** A pointy-top hexagon, matching the design's 30,3 / 55,16.5 / … polygon. */
+private fun hexagonPath(cx: Float, cy: Float, r: Float): Path {
+    val p = Path()
+    for (i in 0 until 6) {
+        val a = Math.toRadians(60.0 * i - 90.0)
+        val x = cx + r * cos(a).toFloat()
+        val y = cy + r * sin(a).toFloat()
+        if (i == 0) p.moveTo(x, y) else p.lineTo(x, y)
+    }
+    p.close()
+    return p
+}
+
+// -- tabs -------------------------------------------------------------------------
 
 @Composable
 private fun BottomBar(current: Tab, onPick: (Tab) -> Unit) {
-    val haptics = LocalHapticFeedback.current
-    Column(Modifier.fillMaxWidth().background(T.RAIL)) {
+    Column(Modifier.fillMaxWidth().background(T.SCREEN)) {
         Box(Modifier.fillMaxWidth().height(1.dp).background(T.BORDER_SOFT))
         Row(
             Modifier
                 .fillMaxWidth()
                 .windowInsetsPadding(WindowInsets.navigationBars)
-                .padding(vertical = 6.dp),
+                .padding(vertical = 8.dp),
         ) {
             Tab.entries.forEach { t ->
                 val selected = t == current
-                val tint by animateColorAsState(
-                    if (selected) T.ACCENT else T.TEXT_MUTED,
-                    label = "navTint",
-                )
+                val tint = if (selected) T.ACCENT else T.TEXT_4
                 Column(
                     Modifier
                         .weight(1f)
-                        .clip(RoundedCornerShape(T.R_CELL))
-                        .clickable {
-                            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            onPick(t)
-                        }
-                        .padding(vertical = 8.dp),
+                        .clip(RoundedCornerShape(T.R_CARD))
+                        .clickable { onPick(t) }
+                        .padding(vertical = 6.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(3.dp),
                 ) {
-                    NavGlyph(t, tint)
-                    Spacer(Modifier.height(5.dp))
+                    Canvas(Modifier.size(20.dp)) { drawTabGlyph(t.ordinal, tint) }
                     Text(
                         t.label,
                         color = tint,
-                        fontSize = Size.MICRO.sp,
-                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                        fontSize = Size.LABEL.sp,
+                        fontWeight = FontWeight.SemiBold,
                     )
                 }
             }
@@ -229,62 +344,36 @@ private fun BottomBar(current: Tab, onPick: (Tab) -> Unit) {
     }
 }
 
-/**
- * Tab glyphs, drawn rather than imported.
- *
- * Three shapes taken from the tool's own subject: the brand hexagon for finding
- * a glove, a waveform for driving one, and a bar chart for measuring one. A
- * generic icon set has nothing this specific in it, and pulling in
- * material-icons-extended to get three near-misses is a poor trade.
- */
-@Composable
-private fun NavGlyph(tab: Tab, tint: Color) {
-    Canvas(Modifier.size(22.dp)) {
-        val w = size.width
-        val h = size.height
-        val stroke = Stroke(width = w * 0.11f, cap = StrokeCap.Round, join = StrokeJoin.Round)
-        when (tab) {
-            Tab.Connect -> {
-                // The HEXR mark: a flat-topped hexagon with its contact point.
-                val r = w * 0.42f
-                val cx = w / 2f
-                val cy = h / 2f
-                val path = Path()
-                for (i in 0 until 6) {
-                    val a = Math.toRadians(60.0 * i)
-                    val x = cx + r * cos(a).toFloat()
-                    val y = cy + r * sin(a).toFloat()
-                    if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
-                }
-                path.close()
-                drawPath(path, tint, style = stroke)
-                drawCircle(tint, radius = w * 0.13f, center = Offset(cx, cy))
-            }
+/** Tab glyphs on a 20-unit grid, matching the design source. */
+private fun DrawScope.drawTabGlyph(index: Int, tint: Color) {
+    val u = size.width / 20f
+    when (index) {
+        0 -> {
+            // Connect: a target — the ring and the thing at its centre.
+            drawCircle(tint, radius = 6.5f * u, center = Offset(10 * u, 10 * u), style = Stroke(1.6f * u))
+            drawCircle(tint, radius = 2f * u, center = Offset(10 * u, 10 * u))
+        }
 
-            Tab.Test -> {
-                // A pressure wave: rise, hold, fall.
-                val path = Path()
-                path.moveTo(w * 0.08f, h * 0.72f)
-                path.cubicTo(w * 0.30f, h * 0.72f, w * 0.30f, h * 0.26f, w * 0.50f, h * 0.26f)
-                path.cubicTo(w * 0.70f, h * 0.26f, w * 0.70f, h * 0.72f, w * 0.92f, h * 0.72f)
-                drawPath(path, tint, style = stroke)
+        1 -> {
+            // Test: a pressure rise and fall.
+            val p = Path().apply {
+                moveTo(3 * u, 13 * u)
+                lineTo(10 * u, 6 * u)
+                lineTo(17 * u, 13 * u)
             }
+            drawPath(p, tint, style = Stroke(1.8f * u, cap = StrokeCap.Round, join = StrokeJoin.Round))
+        }
 
-            Tab.Quick -> {
-                // Three channels at three different peaks — the thing the sweep
-                // is looking for.
-                val bw = w * 0.16f
-                listOf(0.42f, 0.78f, 0.58f).forEachIndexed { i, frac ->
-                    val x = w * (0.20f + i * 0.30f)
-                    drawLine(
+        else -> {
+            // Quick test: three channels at three different peaks.
+            listOf(Triple(4f, 10f, 6f), Triple(8.7f, 6f, 10f), Triple(13.4f, 12f, 4f))
+                .forEach { (x, y, h) ->
+                    drawRect(
                         tint,
-                        Offset(x, h * 0.86f),
-                        Offset(x, h * (0.86f - 0.72f * frac)),
-                        strokeWidth = bw,
-                        cap = StrokeCap.Round,
+                        topLeft = Offset(x * u, y * u),
+                        size = androidx.compose.ui.geometry.Size(2.6f * u, h * u),
                     )
                 }
-            }
         }
     }
 }

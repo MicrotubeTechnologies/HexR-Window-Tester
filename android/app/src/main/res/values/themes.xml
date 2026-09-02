@@ -2,11 +2,12 @@
 <resources>
     <!--
       The window colours match the Compose tokens exactly. Anything else shows
-      as a flash of the wrong colour before the first frame renders.
+      as a flash of the wrong colour before the first frame renders — and this
+      app opens on a full-bleed splash, so a mismatch here is very visible.
     -->
     <style name="Theme.HexrTester" parent="android:Theme.Material.NoActionBar">
-        <item name="android:windowBackground">@color/surface</item>
-        <item name="android:statusBarColor">@color/raised</item>
-        <item name="android:navigationBarColor">@color/rail</item>
+        <item name="android:windowBackground">@color/screen</item>
+        <item name="android:statusBarColor">@color/screen</item>
+        <item name="android:navigationBarColor">@color/screen</item>
     </style>
 </resources>

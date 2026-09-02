@@ -1,0 +1,194 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; }
+    a { color: #F26B21; } a:hover { color: #FF8442; }
+    .hx { font-family: Roboto, "Helvetica Neue", system-ui, sans-serif; }
+    .mono { font-family: "Roboto Mono", ui-monospace, "DejaVu Sans Mono", monospace; }
+    .lbl { font-size: 11px; font-weight: 600; letter-spacing: 1.1px; color: #6E747C; text-transform: uppercase; }
+  </style>
+</helmet>
+
+<div class="hx" style="width: 390px; height: 844px; background: #111214; display: flex; flex-direction: column; overflow: hidden;">
+
+  <div style="background: #17191C; flex-shrink: 0;">
+    <div style="height: 44px;"></div>
+    <div style="height: 3px; background: #17191C;"></div>
+    <div style="display: flex; align-items: center; gap: 12px; padding: 11px 16px;">
+      <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 3px;">
+        <div style="color: #E9EAEC; font-size: 16px; font-weight: 600;">HEXR Tester</div>
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <div style="width: 7px; height: 7px; border-radius: 50%; background: #3ECF8E;"></div>
+          <div style="color: #868C94; font-size: 11.5px;">left connected</div>
+        </div>
+      </div>
+      <div style="background: #1C1F23; border-radius: 12px; padding: 11px 16px; color: #E5484D; font-size: 13px; font-weight: 700;">All off</div>
+    </div>
+  </div>
+
+  <div style="flex-grow: 1; overflow: hidden; padding: 16px; display: flex; flex-direction: column;">
+
+    <div style="color: #E9EAEC; font-size: 23px; font-weight: 600; letter-spacing: -0.2px;">Quick test</div>
+    <div style="color: #868C94; font-size: 13px; line-height: 18px; margin-top: 5px;">Drives every channel to full for two seconds and reports what each one reached. Take the glove off first.</div>
+
+    <div class="lbl" style="margin-top: 18px;">Glove to test</div>
+    <div style="display: flex; gap: 8px; margin-top: 8px;">
+      <div style="flex-grow: 1; flex-basis: 0; min-height: 52px; display: flex; flex-direction: column; justify-content: center; background: {{accentFill}}; border: 1.5px solid {{accent}}; border-radius: 10px; padding: 10px 12px;">
+        <div style="color: {{accent}}; font-size: 14.5px; font-weight: 600;">Left</div>
+        <div style="color: #868C94; font-size: 11.5px;">connected</div>
+      </div>
+      <div style="flex-grow: 1; flex-basis: 0; min-height: 52px; display: flex; flex-direction: column; justify-content: center; background: #111214; border: 1px solid #23262B; border-radius: 10px; padding: 10px 12px;">
+        <div style="color: #5C626A; font-size: 14.5px; font-weight: 500;">Right</div>
+        <div style="color: #5C626A; font-size: 11.5px;">not connected</div>
+      </div>
+    </div>
+
+    <!-- The answer, before the evidence. -->
+    <div style="margin-top: 18px; background: #17191C; border: 1px solid {{bannerEdge}}; border-radius: 14px; padding: 18px;">
+      <div style="color: {{bannerColor}}; font-size: 30px; font-weight: 700; letter-spacing: -0.6px; line-height: 34px;">{{headline}}</div>
+      <div style="color: #B7BCC3; font-size: 13px; line-height: 18px; margin-top: 7px;">{{detail}}</div>
+    </div>
+
+    <div style="margin-top: 16px; background: {{accent}}; border-radius: 12px; padding: 14px 22px; text-align: center; color: #0A0B0C; font-size: 14.5px; font-weight: 700;">Run again</div>
+
+    <div style="margin-top: 12px; height: 6px; background: #131417; border-radius: 4px; overflow: hidden;">
+      <div style="width: 100%; height: 100%; background: #3ECF8E; border-radius: 4px;"></div>
+    </div>
+
+    <div style="margin-top: 18px; background: #17191C; border: 1px solid #23262B; border-radius: 14px; overflow: hidden;">
+      <div style="display: flex; align-items: center; gap: 8px; padding: 12px 14px; border-bottom: 1px solid #1E2126;">
+        <div class="lbl" style="flex-grow: 1;">Channel</div>
+        <div class="lbl" style="width: 74px;">Peak</div>
+      </div>
+      <sc-for list="{{rows}}" as="r" hint-placeholder-count="6">
+        <div style="display: flex; align-items: center; gap: 8px; padding: 12px 14px; border-bottom: {{r.rule}};">
+          <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 2px;">
+            <div style="color: #E9EAEC; font-size: 14.5px; font-weight: 500;">{{r.name}}</div>
+            <div style="color: {{r.color}}; font-size: 11.5px; font-weight: 600;">{{r.verdict}}</div>
+          </div>
+          <div class="mono" style="width: 74px; color: #E9EAEC; font-size: 19px; font-weight: 500;">{{r.peak}}</div>
+        </div>
+      </sc-for>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 8px; padding: 13px 0;">
+      <div style="width: 20px; color: #6E747C; font-size: 15px; font-weight: 700;">+</div>
+      <div class="lbl">What the verdicts mean</div>
+    </div>
+  </div>
+
+  <div style="background: #131417; flex-shrink: 0; border-top: 1px solid #23262B;">
+    <div style="display: flex; padding: 6px 0 22px;">
+      <div style="flex-grow: 1; flex-basis: 0; display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 8px 0;">
+        <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+          <path d="M20.2 11 L15.6 18.97 L6.4 18.97 L1.8 11 L6.4 3.03 L15.6 3.03 Z" stroke="#868C94" stroke-width="2.4" stroke-linejoin="round"/>
+          <circle cx="11" cy="11" r="2.9" fill="#868C94"/>
+        </svg>
+        <div style="color: #868C94; font-size: 11.5px;">Connect</div>
+      </div>
+      <div style="flex-grow: 1; flex-basis: 0; display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 8px 0;">
+        <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+          <path d="M1.8 15.8 C6.4 15.8 6.4 5.7 11 5.7 C15.6 5.7 15.6 15.8 20.2 15.8" stroke="#868C94" stroke-width="2.4" stroke-linecap="round"/>
+        </svg>
+        <div style="color: #868C94; font-size: 11.5px;">Test</div>
+      </div>
+      <div style="flex-grow: 1; flex-basis: 0; display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 8px 0;">
+        <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+          <g stroke="{{accent}}" stroke-width="3.5" stroke-linecap="round">
+            <path d="M4.4 18.9 V12.3"/>
+            <path d="M11 18.9 V6.5"/>
+            <path d="M17.6 18.9 V9.7"/>
+          </g>
+        </svg>
+        <div style="color: {{accent}}; font-size: 11.5px; font-weight: 600;">Quick test</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{
+  "accent": {"editor": "color", "default": "#F26B21", "options": ["#F26B21", "#3ECF8E", "#5B8DEF", "#E5484D"], "section": "Theme"},
+  "result": {"editor": "enum", "default": "failed", "options": ["passed", "failed", "pump"], "section": "State"},
+  "$preview": {"width": 390, "height": 844}
+}'>
+class Component extends DCLogic {
+  mix(hex, t) {
+    const bg = [0x11, 0x12, 0x14];
+    const c = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+    const out = c.map((v, i) => Math.round(bg[i] + (v - bg[i]) * t));
+    return '#' + out.map((v) => v.toString(16).padStart(2, '0')).join('');
+  }
+
+  renderVals() {
+    const accent = this.props.accent ?? '#F26B21';
+    const result = this.props.result ?? 'failed';
+
+    // The bands the desktop tester uses, so a mocked result reads the way a
+    // real one does: Pass above 45, Good 40-45, Weak 30-40, Indenter failed
+    // under 30, Pump failed at nothing at all.
+    const sets = {
+      passed: [47.3, 46.8, 45.9, 48.1, 46.2, 47.7],
+      failed: [47.3, 12.1, 45.9, 38.4, 46.2, 0.4],
+      pump: [0.3, 0.4, 0.2, 0.5, 0.3, 0.4],
+    };
+    const peaks = sets[result] || sets.failed;
+    const names = ['Thumb', 'Index', 'Middle', 'Ring', 'Pinky', 'Palm'];
+
+    const verdictOf = (p) => {
+      if (result === 'pump' || p < 1) return 'Pump failed';
+      if (p > 45) return 'Pass';
+      if (p > 40) return 'Good';
+      if (p > 30) return 'Weak';
+      return 'Indenter failed';
+    };
+    const colourOf = (v) => {
+      if (v === 'Pass' || v === 'Good') return '#3ECF8E';
+      if (v === 'Weak') return accent;
+      return '#E5484D';
+    };
+
+    const verdicts = peaks.map(verdictOf);
+    const failures = verdicts.filter((v) => v !== 'Pass' && v !== 'Good').length;
+
+    let headline = 'All 6 channels passed';
+    let detail = 'Source reached 47.2 kPa.';
+    let tone = '#3ECF8E';
+    if (result === 'pump') {
+      headline = 'Pump failed';
+      detail = 'The source never rose above 4.1 kPa, so no channel could have reached pressure. This is one fault in the pump or its supply, not six failed indenters.';
+      tone = '#E5484D';
+    } else if (failures > 0) {
+      headline = failures + ' of 6 channels failed';
+      detail = 'Source reached 47.2 kPa, but 1 of 6 channels read nothing at all. Those are getting no air — check the supply line and valves before the indenters.';
+      tone = '#E5484D';
+    }
+
+    return {
+      accent,
+      accentFill: this.mix(accent, 0.12),
+      headline,
+      detail,
+      bannerColor: tone,
+      bannerEdge: tone + '73',
+      rows: names.map((name, i) => ({
+        name,
+        peak: peaks[i].toFixed(1),
+        verdict: verdicts[i] + ' · ' + (0.3 + i * 0.11).toFixed(2) + ' s',
+        color: colourOf(verdicts[i]),
+        rule: i === 5 ? 'none' : '1px solid #1E2126',
+      })),
+    };
+  }
+}
+</script>
+</body>
+</html>
