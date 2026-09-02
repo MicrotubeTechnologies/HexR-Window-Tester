@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      The window colours match the Compose tokens exactly. Anything else shows
+      as a flash of the wrong colour before the first frame renders.
+    -->
+    <style name="Theme.HexrTester" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/surface</item>
+        <item name="android:statusBarColor">@color/raised</item>
+        <item name="android:navigationBarColor">@color/rail</item>
+    </style>
+</resources>

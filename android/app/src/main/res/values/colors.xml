@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Mirrors the tokens in ui/Theme.kt, for the pre-Compose window frame. -->
+    <color name="surface">#111214</color>
+    <color name="raised">#17191C</color>
+    <color name="rail">#131417</color>
+    <color name="accent">#F26B21</color>
+    <color name="canvas">#0A0B0C</color>
+</resources>

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The same mark the desktop tester draws in tools/make_icon.py: a flat-topped
+  hexagon outline with a solid contact point at its centre — the HEX in HEXR,
+  and the point of contact is what the glove is actually for.
+
+  Geometry is sized to the adaptive-icon safe zone. The foreground canvas is
+  108dp but a launcher may mask it to the inner 72dp, so the hexagon's radius
+  (30) plus half its stroke (4.5) keeps the whole mark inside 69dp.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <path
+        android:pathData="M84,54 L69,79.98 L39,79.98 L24,54 L39,28.02 L69,28.02 Z"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="9"
+        android:strokeLineJoin="round"
+        android:strokeLineCap="round" />
+
+    <path
+        android:pathData="M44.5,54 a9.5,9.5 0 1,0 19,0 a9.5,9.5 0 1,0 -19,0"
+        android:fillColor="#FFFFFF" />
+</vector>

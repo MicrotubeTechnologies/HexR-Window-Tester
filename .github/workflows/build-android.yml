@@ -1,0 +1,146 @@
+name: Build Android APK
+
+# The Android counterpart of build-windows.yml. Same idea: push, open the
+# Actions tab, download the APK. GitHub's ubuntu runner ships the Android SDK,
+# so nobody needs Android Studio installed to produce a build.
+#
+# Release stream is SEPARATE from the desktop app's. A `v*` tag builds and
+# publishes the Windows installer; an `android-v*` tag builds and publishes the
+# APK. Sharing one tag would have both workflows racing to create the same
+# release, and the loser either fails or silently overwrites the winner's notes.
+#
+#     git tag android-v0.2.0 && git push origin android-v0.2.0
+#
+# There is no permanent /latest/download link for the APK the way there is for
+# the installer, because `releases/latest` points at whichever release is newest
+# across BOTH streams. Link to a specific release, or to the releases page.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, android ]
+    paths:
+      - 'android/**'
+      - '.github/workflows/build-android.yml'
+      - 'VERSION'
+    tags: [ 'android-v*' ]
+  pull_request:
+    paths:
+      - 'android/**'
+
+permissions:
+  contents: write         # create the release and upload its assets
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: android
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      # No Gradle wrapper is committed. The wrapper's value is pinning a Gradle
+      # version, and this does that here in one visible place instead — without
+      # a binary jar in the tree that nobody reviews.
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+
+      # A v1.2.0 tag must produce a 1.2.0 APK, not whatever was last committed.
+      # Untagged builds get 0.0.0 so they can never be mistaken for a release.
+      # Everything downstream reads the same VERSION file the desktop app does.
+      - name: Work out the version
+        id: ver
+        working-directory: .
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/android-v* ]]; then
+            V="${GITHUB_REF#refs/tags/android-v}"
+          else
+            V="0.0.0"
+          fi
+          printf '%s' "$V" > VERSION
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          echo "building version $V"
+
+      # The protocol is implemented twice — once in Python for the desktop and
+      # once in Kotlin here — so this suite is the thing that catches the two
+      # drifting apart. It runs before the APK is built, on purpose: a build
+      # that ships a wrong frame layout is worse than no build.
+      - name: Run protocol tests
+        run: gradle --no-daemon testDebugUnitTest
+
+      - name: Build the APK
+        run: gradle --no-daemon assembleDebug
+
+      # A debug APK, deliberately. It is signed with the standard debug key, so
+      # it sideloads onto a technician's phone with no keystore, no secret in
+      # this repository, and no Play Store account. A release APK would be
+      # unsigned and refuse to install.
+      - name: Name and checksum the APK
+        id: files
+        run: |
+          mkdir -p out
+          cp app/build/outputs/apk/debug/app-debug.apk out/HexR-Tester.apk
+          cd out
+          sha256sum HexR-Tester.apk > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+          echo "apk_sha256=$(sha256sum HexR-Tester.apk | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: HexR-Tester-test-report
+          path: android/app/build/reports/tests/
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: HexR-Tester-APK
+          path: |
+            android/out/HexR-Tester.apk
+            android/out/SHA256SUMS.txt
+
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/android-v')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: HEXR Tester for Android ${{ steps.ver.outputs.version }}
+          generate_release_notes: true
+          body: |
+            **Android ${{ steps.ver.outputs.version }}** — Android 8.0 or newer,
+            on a phone with Bluetooth LE.
+
+            Download `HexR-Tester.apk` below and open it on the phone. Android
+            will ask you to allow installing from your browser or file manager
+            the first time; that prompt is expected for any app not coming from
+            the Play Store.
+
+            On first run the app asks for permission to find and connect to
+            nearby devices. It does not ask for location: the scan is declared
+            `neverForLocation`, because the app only ever reads the glove's
+            advertised name.
+
+            **This app vents every channel when it leaves the screen.** A phone
+            gets pocketed mid-test in a way a laptop does not, and a channel
+            left inflated presses on someone's hand until the battery dies.
+
+            ### Verify your download
+
+            SHA-256 of `HexR-Tester.apk`:
+            ```
+            ${{ steps.files.outputs.apk_sha256 }}
+            ```
+
+            Provided as-is, without warranty of any kind. The app makes no
+            network connections and collects no data.
+          files: |
+            android/out/HexR-Tester.apk
+            android/out/SHA256SUMS.txt
