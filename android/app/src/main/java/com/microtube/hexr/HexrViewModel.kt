@@ -548,4 +548,76 @@ class HexrViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    // -- store screenshots -----------------------------------------------------
+
+    /**
+     * Load one of [DemoSeed]'s canned scenarios.
+     *
+     * Lives here rather than beside its data because half of what it writes —
+     * `driving`, `qtRows` — is `private set`, and widening those so a helper
+     * could reach them would trade a real invariant for a screenshot. See
+     * DemoSeed.kt for what this is for and what stops it running in a release
+     * build.
+     *
+     * It seeds [state], not the snapshots: the ordinary tick reads those gloves
+     * and builds the ordinary [GloveSnapshot]s from them, so every screen is
+     * rendering through its normal path.
+     */
+    fun seedDemo(name: String) {
+        val scenario = DemoSeed.SCENARIOS[name] ?: return
+
+        permissionsGranted = true
+        mustUseSettings = false
+        state.gloves.clear()
+        found.clear()
+
+        for (demo in scenario.gloves) {
+            val glove = state.addGlove(demo.hand, demo.address, "HaptGloveAR ${demo.hand}")
+            glove.connected = true
+            glove.status = "Connected"
+            glove.mtu = demo.mtu
+            glove.absolutePa = false
+            glove.telemetry.battery = demo.battery
+            glove.telemetry.seen = true
+            demo.kpa.copyInto(glove.telemetry.pressureRaw)
+        }
+
+        hand = scenario.hand
+        channels = scenario.channels
+        intensity = scenario.intensity
+        frequency = scenario.frequency
+        driving = scenario.driving
+
+        scenario.quickTest?.let { qt ->
+            qtHand = scenario.gloves.first().hand
+            qtPhase = "done"
+            qtProgress = 1f
+            qtStatus = qt.status
+            qtStatusTone = qt.statusTone
+            qtSummary = qt.summary
+            qtSummaryTone = qt.summaryTone
+            qtRows = Protocol.ALL_FINGERS.map { f ->
+                val peak = qt.peaks[f.channel]
+                QuickTestRow(
+                    channel = f.channel,
+                    label = f.label,
+                    peak = peak,
+                    timeToPeak = qt.timeToPeak[f.channel].takeIf { peak > 0 },
+                    verdict = QuickTest.verdict(peak),
+                )
+            }
+        }
+
+        // A glove only counts as live while notifications keep arriving, and
+        // in a demo none do. Without this the "streaming" pill drops back to
+        // "connected" three seconds in, which is exactly how long it takes to
+        // get past the splash and line a screenshot up.
+        viewModelScope.launch {
+            while (true) {
+                val now = SystemClock.elapsedRealtime()
+                state.gloves.values.forEach { it.lastRx = now }
+                delay(TICK_MS)
+            }
+        }
+    }
 }

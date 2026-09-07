@@ -7,6 +7,11 @@
     -->
     <style name="Theme.HexrTester" parent="android:Theme.Material.NoActionBar">
         <item name="android:windowBackground">@color/screen</item>
+        <!--
+          Ignored from API 35 on, where the bars are always drawn through and
+          the app is responsible for what shows under them. Kept for the API
+          26-34 devices in the field, which are most of them.
+        -->
         <item name="android:statusBarColor">@color/screen</item>
         <item name="android:navigationBarColor">@color/screen</item>
     </style>

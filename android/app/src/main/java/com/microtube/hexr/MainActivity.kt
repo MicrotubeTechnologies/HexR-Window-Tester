@@ -1,6 +1,7 @@
 package com.microtube.hexr
 
 import android.content.Intent
+import android.content.pm.ApplicationInfo
 import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
@@ -102,10 +103,21 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        // Store screenshots, and nothing else. A debuggable build only, and
+        // only when a scenario is named on the intent — there is no way here
+        // from the UI, and no way at all from the build that goes to Play.
+        // See DemoSeed.kt.
+        var startTab = Tab.Connect
+        if (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0) {
+            val scenario = intent.getStringExtra("demo")
+            scenario?.let(vm::seedDemo)
+            startTab = Tab.named(DemoSeed.startTabFor(scenario))
+        }
         setContent {
             HexrTheme {
                 AppRoot(
                     vm = vm,
+                    startTab = startTab,
                     onRequestPermissions = {
                         if (vm.mustUseSettings) {
                             openAppSettings()
@@ -145,16 +157,23 @@ class MainActivity : ComponentActivity() {
 private enum class Tab(val label: String) {
     Connect("Connect"),
     Test("Test"),
-    Quick("Quick test"),
+    Quick("Quick test");
+
+    companion object {
+        /** Resolve a [DemoSeed] scenario's tab name. Anything else is Connect. */
+        fun named(name: String?): Tab =
+            entries.firstOrNull { it.name.equals(name, ignoreCase = true) } ?: Connect
+    }
 }
 
 @Composable
 private fun AppRoot(
     vm: HexrViewModel,
+    startTab: Tab,
     onRequestPermissions: () -> Unit,
     onOpenBluetoothSettings: () -> Unit,
 ) {
-    var tab by remember { mutableStateOf(Tab.Connect) }
+    var tab by remember { mutableStateOf(startTab) }
     var splash by remember { mutableStateOf(true) }
     var splashFading by remember { mutableStateOf(false) }
 

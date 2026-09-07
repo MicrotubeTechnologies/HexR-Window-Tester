@@ -32,6 +32,15 @@
     <!-- Required, not optional: without BLE this app does nothing at all. -->
     <uses-feature android:name="android.hardware.bluetooth_le" android:required="true" />
 
+    <!--
+      ACCESS_FINE_LOCATION above implies a *required* android.hardware.location
+      feature, which would have Play hide the app from any device without one.
+      The app has no use for the hardware - the permission is only there because
+      Android 11 and older made it the price of a BLE scan - so say so, or the
+      store quietly narrows the device list on our behalf.
+    -->
+    <uses-feature android:name="android.hardware.location" android:required="false" />
+
     <application
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
