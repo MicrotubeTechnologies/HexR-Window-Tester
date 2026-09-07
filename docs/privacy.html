@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<!--
+  The published privacy policy for HEXR Tester on Google Play.
+
+  Served by GitHub Pages from docs/ on main:
+      https://microtubetechnologies.github.io/HexR-Window-Tester/privacy.html
+
+  The source text is android/PRIVACY.md. The two are maintained by hand and
+  must be edited together - a generator for one document would be more moving
+  parts than the document.
+
+  Self-contained on purpose: no fonts, no stylesheets, no scripts from anywhere
+  else. A privacy policy that phones a CDN to render is not a good look, and
+  this way the page cannot break because something else went away.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy policy - HEXR Tester</title>
+<style>
+  /* The app's own tokens, from android/.../ui/Theme.kt. */
+  :root {
+    --screen: #0C0C0E;
+    --card: #1B1B1F;
+    --accent: #F4762A;
+    --text: #ECECEC;
+    --text-2: #9A9AA0;
+    --text-3: #7C7C84;
+    --border: rgba(255, 255, 255, 0.09);
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 48px 24px 96px;
+    background: var(--screen);
+    color: var(--text-2);
+    font: 16px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          Helvetica, Arial, sans-serif;
+  }
+  main { max-width: 680px; margin: 0 auto; }
+
+  header { display: flex; align-items: center; gap: 12px; margin-bottom: 40px; }
+  .mark { flex: none; }
+  .wordmark {
+    color: var(--text); font-size: 20px; font-weight: 800; letter-spacing: 0.5px;
+  }
+  .tag {
+    background: var(--card); color: var(--text-3); border-radius: 5px;
+    padding: 3px 7px; font-size: 11px; font-weight: 700; letter-spacing: 0.9px;
+  }
+
+  h1 { color: var(--text); font-size: 30px; line-height: 1.25; margin: 0 0 8px; }
+  h2 {
+    color: var(--text); font-size: 19px; margin: 40px 0 10px;
+    padding-top: 24px; border-top: 1px solid var(--border);
+  }
+  .meta { color: var(--text-3); font-size: 13px; margin: 0 0 36px; }
+  .meta code {
+    background: var(--card); border-radius: 4px; padding: 1px 5px; font-size: 12px;
+  }
+  p { margin: 0 0 14px; }
+  strong { color: var(--text); font-weight: 600; }
+  a { color: var(--accent); }
+  .lede {
+    color: var(--text); font-size: 18px; line-height: 1.55; margin-bottom: 28px;
+  }
+  .answer {
+    color: var(--text); font-size: 22px; font-weight: 700; margin: 0 0 12px;
+  }
+  footer {
+    margin-top: 56px; padding-top: 24px; border-top: 1px solid var(--border);
+    color: var(--text-3); font-size: 13px;
+  }
+</style>
+</head>
+<body>
+<main>
+
+  <header>
+    <!-- The HEXR mark, same geometry as the app's launcher icon. -->
+    <svg class="mark" width="26" height="26" viewBox="0 0 108 108" aria-hidden="true">
+      <path d="M54,24.3 L81.5,39.15 L81.5,68.85 L54,83.7 L26.5,68.85 L26.5,39.15 Z"
+            fill="none" stroke="#F4762A" stroke-width="5" stroke-linejoin="round"/>
+      <path d="M54,43 L66.1,50.15 L66.1,57.85 L54,65 L41.9,57.85 L41.9,50.15 Z"
+            fill="#F4762A"/>
+    </svg>
+    <span class="wordmark">HEXR</span>
+    <span class="tag">TESTER</span>
+  </header>
+
+  <h1>Privacy policy</h1>
+  <p class="meta">
+    HEXR Tester for Android &nbsp;·&nbsp; <code>com.microtube.hexr.tester</code>
+    &nbsp;·&nbsp; Last updated 7 September 2026
+  </p>
+
+  <p class="lede">
+    HEXR Tester is a diagnostic tool for HEXR pneumatic gloves, used by
+    technicians to drive a glove's channels and read back its sensors over
+    Bluetooth.
+  </p>
+
+  <h2>What it collects</h2>
+  <p class="answer">Nothing.</p>
+  <p>
+    The app has no user accounts, no analytics, no crash reporting and no
+    advertising. It does not read contacts, photos, files, or the device's
+    location.
+  </p>
+
+  <h2>What it sends</h2>
+  <p class="answer">Nothing.</p>
+  <p>
+    The app declares no internet permission, so the operating system will not
+    let it open a network connection even if it tried. Everything it does
+    happens between the phone and a glove over Bluetooth LE, on the bench in
+    front of you.
+  </p>
+
+  <h2>What it stores</h2>
+  <p>
+    Test results exist only while the app is open, in memory. Closing it
+    discards them. Nothing is written to storage and nothing is backed up — the
+    app sets <strong>allowBackup="false"</strong>.
+  </p>
+
+  <h2>Bluetooth and location permissions</h2>
+  <p>
+    On Android 12 and newer the app asks for <strong>Nearby devices</strong>, to
+    find and connect to gloves. The Bluetooth scan is declared
+    <strong>neverForLocation</strong>, meaning the app tells Android it will not
+    use scan results to work out where you are — so Android does not ask you for
+    location access, and the app never receives it.
+  </p>
+  <p>
+    On Android 11 and older the app requests location permission instead. That
+    is not a change in what it does: before Android 12 there were no dedicated
+    Bluetooth permissions, and location was the only way the platform allowed a
+    Bluetooth scan at all. The app still only reads the advertised name of
+    nearby gloves.
+  </p>
+
+  <h2>Children</h2>
+  <p>The app is a workshop tool and is not directed at children.</p>
+
+  <h2>Changes</h2>
+  <p>
+    Any change to this policy will be published at this URL, with the date above
+    updated.
+  </p>
+
+  <h2>Contact</h2>
+  <p>
+    Questions about this policy: open an issue at
+    <a href="https://github.com/MicrotubeTechnologies/HexR-Window-Tester/issues">
+      github.com/MicrotubeTechnologies/HexR-Window-Tester/issues</a>.
+  </p>
+
+  <footer>
+    HEXR and HEXR Tester are products of Microtube Technologies.
+    The source text for this page is
+    <a href="https://github.com/MicrotubeTechnologies/HexR-Window-Tester/blob/android/android/PRIVACY.md">android/PRIVACY.md</a>.
+  </footer>
+
+</main>
+</body>
+</html>
