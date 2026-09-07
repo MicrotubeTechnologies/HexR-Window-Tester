@@ -17,6 +17,14 @@ android/app/build/
 android/local.properties
 android/out/
 *.apk
+*.aab
+
+# Signing material for the Play Store upload key. The keystore and its
+# passwords never belong in a repository - losing the key is recoverable
+# through Play App Signing, leaking it is not.
+android/keystore.properties
+*.jks
+*.keystore
 
 # Design canvas: the .dc.html artboards are the source; the seeded page is a
 # ~2 MB build output that is regenerated from them.

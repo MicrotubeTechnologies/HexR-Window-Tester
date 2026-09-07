@@ -1,0 +1,73 @@
+# Privacy policy — HEXR Tester for Android
+
+Google Play requires a privacy policy at a public URL before an app can be
+published, even one that collects nothing. This is the source text; the
+published copy is `docs/privacy.html`, served by GitHub Pages at
+
+    https://microtubetechnologies.github.io/HexR-Window-Tester/privacy.html
+
+The two are maintained by hand and must be edited together. Have whoever signs
+off on company copy read this before the first submission — in particular the
+contact address, which is currently the repository's issue tracker rather than a
+company mailbox.
+
+Package: `com.microtube.hexr.tester`
+Last updated: 7 September 2026
+
+---
+
+HEXR Tester is a diagnostic tool for HEXR pneumatic gloves, used by technicians
+to drive a glove's channels and read back its sensors over Bluetooth.
+
+## What it collects
+
+Nothing.
+
+The app has no user accounts, no analytics, no crash reporting and no
+advertising. It does not read contacts, photos, files, or the device's location.
+
+## What it sends
+
+Nothing.
+
+The app declares no internet permission, so the operating system will not let it
+open a network connection even if it tried to. Everything it does happens
+between the phone and a glove over Bluetooth LE, on the bench in front of you.
+
+## What it stores
+
+Test results exist only while the app is open, in memory. Closing it discards
+them. Nothing is written to storage and nothing is backed up — the app sets
+`allowBackup="false"`.
+
+## Bluetooth and location permissions
+
+On Android 12 and newer the app asks for *Nearby devices*, to find and connect
+to gloves. The Bluetooth scan is declared `neverForLocation`, meaning the app
+tells Android it will not use scan results to work out where you are — so
+Android does not ask you for location access, and the app never receives it.
+
+On Android 11 and older the app requests location permission instead. That is
+not a change in what it does: before Android 12 there were no dedicated
+Bluetooth permissions, and location was the only way the platform allowed a
+Bluetooth scan at all. The app still only reads the advertised name of nearby
+gloves.
+
+## Children
+
+The app is a workshop tool and is not directed at children.
+
+## Changes
+
+Any change to this policy will be published at this URL, with the date above
+updated.
+
+## Contact
+
+Questions about this policy: open an issue at
+<https://github.com/MicrotubeTechnologies/HexR-Window-Tester/issues>.
+
+A monitored company address would be better here, and should replace this before
+the listing goes to production. The issue tracker is public, is read, and is a
+real channel — which is what Play requires — but it is not what a customer
+expects to find on a privacy policy.
